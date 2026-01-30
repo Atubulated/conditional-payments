@@ -102,6 +102,26 @@ html {
   animation: fade-in 0.5s ease-out forwards;
 }
 
+/* ===== SHIELD WATERMARK ===== */
+.shield-watermark {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 500px;
+  height: 500px;
+  opacity: 0.06;
+  pointer-events: none;
+  z-index: 0;
+}
+
+@media (max-width: 768px) {
+  .shield-watermark {
+    width: 300px;
+    height: 300px;
+  }
+}
+
 /* ===== FOOTER LINKS ===== */
 .footer-link {
   position: relative;

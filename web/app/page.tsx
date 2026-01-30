@@ -38,6 +38,20 @@ export default function Home() {
         <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl" />
       </div>
 
+      {/* Shield Watermark */}
+      <div className="shield-watermark">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+          <path 
+            d="M12 2L3 7V12C3 17.55 6.84 22.74 12 24C17.16 22.74 21 17.55 21 12V7L12 2Z" 
+            fill="#6366f1"
+          />
+          <path 
+            d="M10 17L6 13L7.41 11.59L10 14.17L16.59 7.58L18 9L10 17Z" 
+            fill="#0f172a"
+          />
+        </svg>
+      </div>
+
       {/* Floating Particles */}
       <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
         <div className="particle particle-sm" style={{ left: '5%', animationDelay: '0s' }} />
