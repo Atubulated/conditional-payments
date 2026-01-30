@@ -5,13 +5,15 @@ import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagm
 import { parseUnits } from 'viem';
 import { Shield, User, Clock, DollarSign, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 import { CONTRACT_ADDRESS, CONTRACT_ABI } from './constants';
+import { useToast } from './Toast';
 
 export default function EscrowForm() {
   const { isConnected } = useAccount();
+  const { showToast } = useToast();
   const [paymentMode, setPaymentMode] = useState<'Mediated' | 'Bonded' | 'Timelock'>('Mediated');
   
   // Contract Hooks
-  const { data: hash, isPending, writeContract } = useWriteContract();
+  const { data: hash, isPending, writeContract, error } = useWriteContract();
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({ hash });
 
   // Form State
@@ -33,8 +35,37 @@ export default function EscrowForm() {
     }
   }, [days, hours, mins, paymentMode]);
 
+  // Show toast on transaction confirmed
+  useEffect(() => {
+    if (isConfirmed && hash) {
+      showToast('success', `Escrow created successfully!`);
+    }
+  }, [isConfirmed, hash, showToast]);
+
+  // Show toast on error
+  useEffect(() => {
+    if (error) {
+      showToast('error', 'Transaction failed. Please try again.');
+    }
+  }, [error, showToast]);
+
   const handleCreate = () => {
-    if (!amount || !receiver) return; // Basic validation
+    if (!amount || !receiver) {
+      showToast('error', 'Please fill in all required fields');
+      return;
+    }
+
+    if (!receiver.startsWith('0x') || receiver.length !== 42) {
+      showToast('error', 'Invalid receiver address');
+      return;
+    }
+
+    if (paymentMode === 'Mediated' && (!arbiter || !arbiter.startsWith('0x') || arbiter.length !== 42)) {
+      showToast('error', 'Invalid arbiter address');
+      return;
+    }
+
+    showToast('info', 'Please confirm the transaction in your wallet');
 
     const fn = paymentMode === 'Mediated' ? 'createMediatedPayment' : paymentMode === 'Bonded' ? 'createBondedPayment' : 'createTimelockedPayment';
     
