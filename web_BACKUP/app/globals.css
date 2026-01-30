@@ -1,0 +1,281 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* =========================================================
+   BASE RESET (DO NOT BREAK PORTALS)
+   ========================================================= */
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+  background-color: #020617;
+  color-scheme: dark;
+}
+
+/* ✅ FIXED: Remove overflow constraints from body to allow portals */
+body {
+  position: static;
+  /* overflow-x: hidden; ❌ REMOVED - This was breaking RainbowKit modals */
+}
+
+/* Prevent horizontal scroll without breaking portals */
+html {
+  overflow-x: clip; /* ✅ Safe alternative that won't clip portals */
+}
+
+/* =========================================================
+   FLOATING PARTICLES ANIMATION
+   ========================================================= */
+
+@keyframes float-up {
+  0% {
+    bottom: -10px;
+    opacity: 0;
+    transform: translateX(0);
+  }
+  10% {
+    opacity: 0.8;
+  }
+  90% {
+    opacity: 0.8;
+  }
+  100% {
+    bottom: 100vh;
+    opacity: 0;
+    transform: translateX(25px);
+  }
+}
+
+@keyframes float-up-slow {
+  0% {
+    bottom: -10px;
+    opacity: 0;
+    transform: translateX(0);
+  }
+  10% {
+    opacity: 0.6;
+  }
+  90% {
+    opacity: 0.6;
+  }
+  100% {
+    bottom: 100vh;
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+}
+
+@keyframes glow-pulse {
+  0%, 100% {
+    box-shadow:
+      0 0 8px rgba(129, 140, 248, 0.6),
+      0 0 16px rgba(129, 140, 248, 0.3);
+  }
+  50% {
+    box-shadow:
+      0 0 12px rgba(129, 140, 248, 0.8),
+      0 0 24px rgba(129, 140, 248, 0.5);
+  }
+}
+
+.particle {
+  position: absolute;
+  bottom: -10px;
+  width: 3px;
+  height: 3px;
+  border-radius: 9999px;
+  background: rgba(129, 140, 248, 0.9);
+  pointer-events: none;
+  animation: float-up 16s linear infinite;
+  box-shadow:
+    0 0 8px rgba(129, 140, 248, 0.7),
+    0 0 16px rgba(129, 140, 248, 0.4);
+}
+
+.particle-slow {
+  animation: float-up-slow 22s linear infinite;
+}
+
+.particle-lg {
+  width: 4px;
+  height: 4px;
+  background: rgba(34, 211, 238, 0.85);
+  box-shadow:
+    0 0 10px rgba(34, 211, 238, 0.7),
+    0 0 20px rgba(34, 211, 238, 0.4);
+}
+
+.particle-sm {
+  width: 2px;
+  height: 2px;
+}
+
+.particle-shimmer {
+  animation: float-up 12s linear infinite, glow-pulse 3s ease-in-out infinite;
+}
+
+/* =========================================================
+   SCROLLBAR
+   ========================================================= */
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #020617;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/* =========================================================
+   RAINBOWKIT — LAYOUT CONTRACT (CRITICAL)
+   ========================================================= */
+
+/* Overlay MUST be fixed and centered */
+[data-rk] > div[style*="position: fixed"] {
+  position: fixed !important;
+  inset: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: rgba(0, 0, 0, 0.85) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  z-index: 9999 !important;
+}
+
+/* Modal container */
+[data-rk] [role="dialog"] {
+  position: relative !important;
+  max-width: 90vw !important;
+  max-height: 90vh !important;
+  background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%) !important;
+  border: 1px solid rgba(99, 102, 241, 0.3) !important;
+  border-radius: 20px !important;
+  box-shadow:
+    0 25px 50px rgba(0, 0, 0, 0.6),
+    0 0 80px rgba(99, 102, 241, 0.2) !important;
+  overflow: hidden !important;
+}
+
+/* =========================================================
+   RAINBOWKIT — HEADER BUTTONS
+   ========================================================= */
+
+[data-rk] {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+[data-rk] button {
+  flex-shrink: 0 !important;
+  transition: all 0.25s ease !important;
+}
+
+/* Network button */
+[data-testid="rk-chain-button"] {
+  height: 40px !important;
+  padding: 6px 12px !important;
+  border-radius: 9999px !important;
+  background: linear-gradient(145deg, #1e293b, #0f172a) !important;
+  border: 1px solid rgba(99, 102, 241, 0.35) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2) !important;
+}
+
+[data-testid="rk-chain-button"]:hover {
+  border-color: rgba(99, 102, 241, 0.5) !important;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2) !important;
+}
+
+/* Account button */
+[data-testid="rk-account-button"] {
+  width: 42px !important;
+  height: 42px !important;
+  border-radius: 9999px !important;
+  padding: 0 !important;
+  background: linear-gradient(135deg, #6366f1, #4338ca) !important;
+  border: 2px solid rgba(99, 102, 241, 0.4) !important;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+[data-testid="rk-account-button"]:hover {
+  box-shadow: 0 6px 16px rgba(99, 102, 241, 0.4) !important;
+  transform: translateY(-1px) !important;
+}
+
+/* Hide default avatar/text, show only the colored circle */
+[data-testid="rk-account-button"] > div {
+  width: 100% !important;
+  height: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* =========================================================
+   CONNECT BUTTON (NOT CONNECTED)
+   ========================================================= */
+
+[data-testid="rk-connect-button"] {
+  padding: 10px 24px !important;
+  height: 42px !important;
+  border-radius: 9999px !important;
+  font-weight: 600 !important;
+  font-size: 14px !important;
+  background: linear-gradient(135deg, #6366f1, #4338ca) !important;
+  color: white !important;
+  border: 2px solid rgba(99, 102, 241, 0.4) !important;
+  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.45) !important;
+  transition: all 0.25s ease !important;
+}
+
+[data-testid="rk-connect-button"]:hover {
+  box-shadow: 0 8px 24px rgba(99, 102, 241, 0.55) !important;
+  transform: translateY(-2px) !important;
+}
+
+/* =========================================================
+   FADE-IN ANIMATION
+   ========================================================= */
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.4s ease-out forwards;
+}
+
+/* =========================================================
+   FOOTER LINK HOVER
+   ========================================================= */
+
+.footer-link {
+  transition: color 0.2s ease;
+}
+
+.footer-link:hover {
+  color: #818cf8;
+}
