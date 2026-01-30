@@ -220,9 +220,9 @@ export default function Home() {
             <div>
               <h4 className="font-semibold text-white mb-3 text-sm">Resources</h4>
               <div className="space-y-2 text-sm text-slate-500">
-                <div className="footer-link cursor-pointer">Documentation</div>
-                <div className="footer-link cursor-pointer">GitHub</div>
-                <div className="footer-link cursor-pointer">Support</div>
+                <div className="footer-link cursor-pointer w-fit">Documentation</div>
+                <div className="footer-link cursor-pointer w-fit">GitHub</div>
+                <div className="footer-link cursor-pointer w-fit">Support</div>
               </div>
             </div>
             <div>
