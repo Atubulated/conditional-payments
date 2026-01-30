@@ -7,7 +7,7 @@ import { Providers } from './providers';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Custodex | Trustless Escrow Protocol',
+  title: 'Custodex | Hold. Verify. Release.',
   description: 'Non-custodial conditional payments secured by smart contracts.',
 };
 

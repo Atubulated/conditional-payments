@@ -75,7 +75,7 @@ export default function Home() {
             </div>
             <div>
               <div className="font-bold text-white text-lg">Custodex</div>
-              <div className="text-xs text-slate-500">Trustless Escrow Protocol</div>
+              <div className="text-xs text-slate-500">Hold. Verify. Release.</div>
             </div>
           </div>
           <ConnectButton />
