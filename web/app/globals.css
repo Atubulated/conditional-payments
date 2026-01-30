@@ -147,6 +147,52 @@ html {
   width: 100%;
 }
 
+/* ===== CONNECT WALLET BUTTON ===== */
+[data-testid="rk-connect-button"] {
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%) !important;
+  color: white !important;
+  font-weight: 600 !important;
+  font-size: 14px !important;
+  padding: 10px 20px !important;
+  border-radius: 50px !important;
+  border: none !important;
+  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4) !important;
+  transition: all 0.2s ease !important;
+}
+
+[data-testid="rk-connect-button"]:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5) !important;
+}
+
+/* Connected state - Account button */
+[data-testid="rk-account-button"] {
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%) !important;
+  border-radius: 50px !important;
+  padding: 6px 12px !important;
+  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3) !important;
+  transition: all 0.2s ease !important;
+}
+
+[data-testid="rk-account-button"]:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4) !important;
+}
+
+/* Chain/Network selector button */
+[data-testid="rk-chain-button"] {
+  background: rgba(30, 41, 59, 0.8) !important;
+  border: 1px solid rgba(99, 102, 241, 0.3) !important;
+  border-radius: 50px !important;
+  padding: 6px 12px !important;
+  transition: all 0.2s ease !important;
+}
+
+[data-testid="rk-chain-button"]:hover {
+  border-color: rgba(99, 102, 241, 0.6) !important;
+  background: rgba(30, 41, 59, 1) !important;
+}
+
 /* ===== RAINBOWKIT MODAL FIX ===== */
 /* Ensure modal appears as centered overlay, not inline content */
 
