@@ -1,4 +1,7 @@
-export const CONTRACT_ADDRESS = "0x5D40701a93Ffd6770D360983DB4791EF5Cfa6863";
+export const CONTRACT_ADDRESS = "0xD61869BA745f9107291a1b46C3BDc99B41849710";
+
+// Arc Testnet native USDC
+export const USDC_ADDRESS = "0x3600000000000000000000000000000000000000";
 
 export const CONTRACT_ABI = [
   { "type": "function", "name": "acceptBondedPayment", "inputs": [{ "name": "paymentId", "type": "uint256", "internalType": "uint256" }], "outputs": [], "stateMutability": "nonpayable" },
