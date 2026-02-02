@@ -12,7 +12,7 @@ contract TestFullFlow is Script {
         ConditionalPayments payments = ConditionalPayments(deployedContract);
 
         // We need an Arbiter for the new Mediated logic
-        address dummyArbiter = address(0x999); 
+        address dummyArbiter = address(0x999);
 
         vm.startBroadcast();
 
@@ -20,16 +20,16 @@ contract TestFullFlow is Script {
         console.log("USDC balance:", usdc.balanceOf(msg.sender));
 
         // 1. Mint & Approve
-        usdc.mint(msg.sender, 10 * 10**6);
-        usdc.approve(deployedContract, 1 * 10**6);
+        usdc.mint(msg.sender, 10 * 10 ** 6);
+        usdc.approve(deployedContract, 1 * 10 ** 6);
 
         // 2. CHANGE: use 'createMediatedPayment' instead of 'createPayment'
         // We also added the 'dummyArbiter' argument
         uint256 paymentId = payments.createMediatedPayment(
-            msg.sender,  
+            msg.sender,
             dummyArbiter, // NEW: The mediator
             address(usdc),
-            1 * 10**6,
+            1 * 10 ** 6,
             bytes32(0),
             block.timestamp + 1 days // Using a real timestamp instead of 0
         );

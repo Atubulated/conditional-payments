@@ -9,31 +9,42 @@ contract ConditionalPayments is ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     // ============ ENUMS & STRUCTS ============
-    
-    enum PaymentType { Simple, Timelocked, Mediated, Bonded }
-    enum Status { Pending, Accepted, Disputed, Resolved, Refunded }
+
+    enum PaymentType {
+        Simple,
+        Timelocked,
+        Mediated,
+        Bonded
+    }
+    enum Status {
+        Pending,
+        Accepted,
+        Disputed,
+        Resolved,
+        Refunded
+    }
 
     struct Payment {
         address sender;
         address receiver;
-        address arbiter;      
+        address arbiter;
         address token;
         uint256 amount;
-        uint256 bondAmount;   
+        uint256 bondAmount;
         uint256 deadline;
-        uint256 challengePeriod; 
+        uint256 challengePeriod;
         bytes32 termsHash;
         PaymentType pType;
         Status status;
     }
 
     // ============ STATE ============
-    
+
     uint256 private _paymentIdCounter;
     mapping(uint256 => Payment) public payments;
 
     // ============ EVENTS ============
-    
+
     event PaymentCreated(uint256 indexed id, PaymentType pType, address sender, address receiver);
     event PaymentAccepted(uint256 indexed id, address receiver);
     event PaymentDisputed(uint256 indexed id, address indexed by);
@@ -73,7 +84,9 @@ contract ConditionalPayments is ReentrancyGuard {
         bytes32 termsHash,
         uint256 deadline
     ) external nonReentrant returns (uint256 paymentId) {
-        paymentId = _createBase(receiver, address(0), token, amount, bondAmount, 0, termsHash, PaymentType.Bonded, deadline);
+        paymentId = _createBase(
+            receiver, address(0), token, amount, bondAmount, 0, termsHash, PaymentType.Bonded, deadline
+        );
     }
 
     /**
@@ -88,7 +101,9 @@ contract ConditionalPayments is ReentrancyGuard {
         bytes32 termsHash,
         uint256 deadline
     ) external nonReentrant returns (uint256 paymentId) {
-        paymentId = _createBase(receiver, address(0), token, amount, 0, challengePeriod, termsHash, PaymentType.Timelocked, deadline);
+        paymentId = _createBase(
+            receiver, address(0), token, amount, 0, challengePeriod, termsHash, PaymentType.Timelocked, deadline
+        );
     }
 
     // ============ ACTION FUNCTIONS ============
@@ -104,7 +119,7 @@ contract ConditionalPayments is ReentrancyGuard {
 
         payment.status = Status.Accepted;
         IERC20(payment.token).safeTransferFrom(msg.sender, address(this), payment.bondAmount);
-        
+
         emit PaymentAccepted(paymentId, msg.sender);
     }
 
@@ -120,7 +135,7 @@ contract ConditionalPayments is ReentrancyGuard {
         payment.status = Status.Resolved;
         uint256 totalPayout = payment.amount + payment.bondAmount;
         IERC20(payment.token).safeTransfer(payment.receiver, totalPayout);
-        
+
         emit DisputeResolved(paymentId, payment.receiver);
     }
 
@@ -142,22 +157,36 @@ contract ConditionalPayments is ReentrancyGuard {
         payment.status = Status.Resolved;
         uint256 totalPayout = payment.amount + payment.bondAmount;
         IERC20(payment.token).safeTransfer(winner, totalPayout);
-        
+
         emit DisputeResolved(paymentId, winner);
     }
 
     // ============ INTERNAL HELPERS ============
 
     function _createBase(
-        address receiver, address arbiter, address token, uint256 amount,
-        uint256 bond, uint256 challenge, bytes32 terms, PaymentType pType, uint256 deadline
+        address receiver,
+        address arbiter,
+        address token,
+        uint256 amount,
+        uint256 bond,
+        uint256 challenge,
+        bytes32 terms,
+        PaymentType pType,
+        uint256 deadline
     ) internal returns (uint256 id) {
         id = _paymentIdCounter++;
         payments[id] = Payment({
-            sender: msg.sender, receiver: receiver, arbiter: arbiter,
-            token: token, amount: amount, bondAmount: bond,
-            deadline: deadline, challengePeriod: challenge,
-            termsHash: terms, pType: pType, status: Status.Pending
+            sender: msg.sender,
+            receiver: receiver,
+            arbiter: arbiter,
+            token: token,
+            amount: amount,
+            bondAmount: bond,
+            deadline: deadline,
+            challengePeriod: challenge,
+            termsHash: terms,
+            pType: pType,
+            status: Status.Pending
         });
         IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
         emit PaymentCreated(id, pType, msg.sender, receiver);

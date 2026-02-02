@@ -7,10 +7,16 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 contract MockUSDC is ERC20 {
     constructor() ERC20("Mock USDC", "USDC") {
-        _mint(msg.sender, 1000000 * 10**6);
+        _mint(msg.sender, 1000000 * 10 ** 6);
     }
-    function decimals() public pure override returns (uint8) { return 6; }
-    function mint(address to, uint256 amount) external { _mint(to, amount); }
+
+    function decimals() public pure override returns (uint8) {
+        return 6;
+    }
+
+    function mint(address to, uint256 amount) external {
+        _mint(to, amount);
+    }
 }
 
 contract ConditionalPaymentsTest is Test {
@@ -22,15 +28,15 @@ contract ConditionalPaymentsTest is Test {
     address public arbiter = address(0x3);
     address public stranger = address(0x4);
 
-    uint256 constant PAYMENT_AMOUNT = 1000 * 10**6;
+    uint256 constant PAYMENT_AMOUNT = 1000 * 10 ** 6;
 
     function setUp() public {
         payments = new ConditionalPayments();
         usdc = new MockUSDC();
 
-        usdc.transfer(sender, 10000 * 10**6);
-        usdc.transfer(receiver, 1000 * 10**6); // Receiver starts with 1,000
-        
+        usdc.transfer(sender, 10000 * 10 ** 6);
+        usdc.transfer(receiver, 1000 * 10 ** 6); // Receiver starts with 1,000
+
         vm.label(sender, "Sender");
         vm.label(receiver, "Receiver");
         vm.label(arbiter, "Arbiter");
@@ -42,30 +48,27 @@ contract ConditionalPaymentsTest is Test {
     function test_CreateMediatedPayment() public {
         vm.startPrank(sender);
         usdc.approve(address(payments), PAYMENT_AMOUNT);
-        
+
         uint256 pId = payments.createMediatedPayment(
-            receiver,
-            arbiter,
-            address(usdc),
-            PAYMENT_AMOUNT,
-            keccak256("Terms"),
-            block.timestamp + 1 days
+            receiver, arbiter, address(usdc), PAYMENT_AMOUNT, keccak256("Terms"), block.timestamp + 1 days
         );
 
         ConditionalPayments.Payment memory p = payments.getPayment(pId);
-        assertEq(uint(p.pType), uint(ConditionalPayments.PaymentType.Mediated));
-        assertEq(uint(p.status), uint(ConditionalPayments.Status.Pending));
+        assertEq(uint256(p.pType), uint256(ConditionalPayments.PaymentType.Mediated));
+        assertEq(uint256(p.status), uint256(ConditionalPayments.Status.Pending));
         vm.stopPrank();
     }
 
     function test_HappyPath_Release() public {
         vm.startPrank(sender);
         usdc.approve(address(payments), PAYMENT_AMOUNT);
-        uint256 pId = payments.createMediatedPayment(receiver, arbiter, address(usdc), PAYMENT_AMOUNT, keccak256("Work"), block.timestamp + 1 days);
-        
+        uint256 pId = payments.createMediatedPayment(
+            receiver, arbiter, address(usdc), PAYMENT_AMOUNT, keccak256("Work"), block.timestamp + 1 days
+        );
+
         // Track the balance BEFORE the release
         uint256 balanceBefore = usdc.balanceOf(receiver);
-        
+
         payments.releasePayment(pId);
         vm.stopPrank();
 
@@ -76,7 +79,9 @@ contract ConditionalPaymentsTest is Test {
     function test_DisputeAndResolve() public {
         vm.startPrank(sender);
         usdc.approve(address(payments), PAYMENT_AMOUNT);
-        uint256 pId = payments.createMediatedPayment(receiver, arbiter, address(usdc), PAYMENT_AMOUNT, keccak256("Work"), block.timestamp + 1 days);
+        uint256 pId = payments.createMediatedPayment(
+            receiver, arbiter, address(usdc), PAYMENT_AMOUNT, keccak256("Work"), block.timestamp + 1 days
+        );
         vm.stopPrank();
 
         vm.prank(receiver);
@@ -95,14 +100,16 @@ contract ConditionalPaymentsTest is Test {
     function test_Revert_When_StrangerResolves() public {
         vm.startPrank(sender);
         usdc.approve(address(payments), PAYMENT_AMOUNT);
-        uint256 pId = payments.createMediatedPayment(receiver, arbiter, address(usdc), PAYMENT_AMOUNT, keccak256("Work"), block.timestamp + 1 days);
+        uint256 pId = payments.createMediatedPayment(
+            receiver, arbiter, address(usdc), PAYMENT_AMOUNT, keccak256("Work"), block.timestamp + 1 days
+        );
         vm.stopPrank();
 
         vm.prank(sender);
         payments.disputePayment(pId);
 
         vm.prank(stranger);
-        vm.expectRevert(); 
+        vm.expectRevert();
         payments.resolveDispute(pId, receiver);
     }
 }

@@ -18,13 +18,13 @@ contract AcceptPayment is Script {
         vm.startBroadcast();
 
         // In the new Infra, "Accepting" isn't a single button anymore.
-        // Usually, the Receiver just waits for the Sender to release, 
+        // Usually, the Receiver just waits for the Sender to release,
         // OR they raise a dispute if things go wrong.
-        
+
         // Let's simulate a "Dispute" to test the new logic:
         console.log("Raising a dispute for payment ID:", paymentId);
         infra.disputePayment(paymentId);
-        
+
         console.log("Status updated to: DISPUTED");
 
         vm.stopBroadcast();
