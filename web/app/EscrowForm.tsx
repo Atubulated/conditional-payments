@@ -3,15 +3,14 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAccount, useWriteContract } from 'wagmi';
 import { parseUnits } from 'viem';
-import { Shield, User, Clock, DollarSign, Loader2, CheckCircle2, AlertCircle, ExternalLink, XCircle } from 'lucide-react';
+import { Shield, User, Clock, DollarSign, Loader2, CheckCircle2, AlertCircle, XCircle } from 'lucide-react';
 import { CONTRACT_ADDRESS, CONTRACT_ABI, USDC_ADDRESS } from './constants';
 import { useToast } from './Toast';
 
 const ARC_RPC = 'https://rpc.testnet.arc.network';
 
-type TxStatus = 'idle' | 'pending' | 'submitted' | 'confirmed' | 'failed';
+type TxStatus = 'idle' | 'pending' | 'approved' | 'submitted' | 'confirmed' | 'failed' | 'rejected';
 
-// Direct RPC call to get transaction receipt - bypasses all wagmi/viem issues
 async function getReceiptDirect(txHash: string): Promise<{ status: 'success' | 'failed' } | null> {
   try {
     const response = await fetch(ARC_RPC, {
@@ -28,12 +27,11 @@ async function getReceiptDirect(txHash: string): Promise<{ status: 'success' | '
     const data = await response.json();
     
     if (data.result) {
-      // status: "0x1" = success, "0x0" = failed
       const status = data.result.status === '0x1' ? 'success' : 'failed';
       return { status };
     }
     
-    return null; // Receipt not yet available
+    return null;
   } catch (err) {
     console.error('RPC error:', err);
     return null;
@@ -50,6 +48,7 @@ export default function EscrowForm() {
   const [txStatus, setTxStatus] = useState<TxStatus>('idle');
   const [txHash, setTxHash] = useState<string | null>(null);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
+  const approvedTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const [receiver, setReceiver] = useState('');
   const [arbiter, setArbiter] = useState('');
@@ -68,15 +67,39 @@ export default function EscrowForm() {
     }
   }, [days, hours, mins, paymentMode]);
 
-  // When hash is received from writeContract, start polling
+  // Reset form to initial state
+  const resetForm = useCallback(() => {
+    reset();
+    setTxStatus('idle');
+    setTxHash(null);
+    setReceiver('');
+    setArbiter('');
+    setAmount('');
+    setDays('0');
+    setHours('0');
+    setMins('0');
+  }, [reset]);
+
+  // When hash is received, show approved then move to submitted
   useEffect(() => {
     if (hash && txStatus === 'pending') {
       setTxHash(hash);
-      setTxStatus('submitted');
+      setTxStatus('approved');
+      showToast('info', 'Transaction submitted');
+      
+      // Clear any existing timeout
+      if (approvedTimeoutRef.current) {
+        clearTimeout(approvedTimeoutRef.current);
+      }
+      
+      // After 2s, move to submitted state
+      approvedTimeoutRef.current = setTimeout(() => {
+        setTxStatus('submitted');
+      }, 2000);
     }
-  }, [hash, txStatus]);
+  }, [hash, txStatus, showToast]);
 
-  // Poll for receipt using direct RPC
+  // Poll for receipt
   useEffect(() => {
     if (txStatus !== 'submitted' || !txHash) return;
 
@@ -88,26 +111,24 @@ export default function EscrowForm() {
       if (isCancelled) return;
 
       if (receipt) {
-        // Clear any pending polling
         if (pollingRef.current) {
           clearTimeout(pollingRef.current);
           pollingRef.current = null;
         }
 
         if (receipt.status === 'success') {
-          setTxStatus('confirmed');
-          showToast('success', 'Escrow created successfully!');
+          showToast('success', 'Escrow created!', `https://testnet.arcscan.app/tx/${txHash}`, 'View on Explorer');
         } else {
-          setTxStatus('failed');
-          showToast('error', 'Transaction failed on chain.');
+          showToast('error', 'Transaction failed', `https://testnet.arcscan.app/tx/${txHash}`, 'View on Explorer');
         }
+        
+        // Reset form immediately after result
+        resetForm();
       } else {
-        // Not yet mined, poll again in 1.5 seconds
         pollingRef.current = setTimeout(poll, 1500);
       }
     };
 
-    // Start polling immediately
     poll();
 
     return () => {
@@ -117,15 +138,15 @@ export default function EscrowForm() {
         pollingRef.current = null;
       }
     };
-  }, [txStatus, txHash, showToast]);
+  }, [txStatus, txHash, showToast, resetForm]);
 
-  // Handle wallet rejection or error
+  // Handle wallet rejection
   useEffect(() => {
     if (error) {
-      setTxStatus('idle');
-      showToast('error', 'Transaction rejected.');
+      showToast('error', 'Transaction declined');
+      resetForm();
     }
-  }, [error, showToast]);
+  }, [error, showToast, resetForm]);
 
   // Set pending when writeContract is called
   useEffect(() => {
@@ -134,17 +155,13 @@ export default function EscrowForm() {
     }
   }, [isPending, txStatus]);
 
-  const handleReset = useCallback(() => {
-    reset();
-    setTxStatus('idle');
-    setTxHash(null);
-    setReceiver('');
-    setArbiter('');
-    setAmount('');
-    setDays('0');
-    setHours('0');
-    setMins('0');
-  }, [reset]);
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingRef.current) clearTimeout(pollingRef.current);
+      if (approvedTimeoutRef.current) clearTimeout(approvedTimeoutRef.current);
+    };
+  }, []);
 
   const handleCreate = () => {
     if (!amount || !receiver) {
@@ -161,8 +178,6 @@ export default function EscrowForm() {
       showToast('error', 'Invalid arbiter address');
       return;
     }
-
-    showToast('info', 'Please confirm in your wallet');
 
     const fn = paymentMode === 'Mediated' 
       ? 'createMediatedPayment' 
@@ -304,7 +319,7 @@ export default function EscrowForm() {
           </div>
         </div>
 
-        {/* Status-based UI */}
+        {/* Status-based Button/Indicator */}
         
         {txStatus === 'idle' && (
           <button 
@@ -320,76 +335,23 @@ export default function EscrowForm() {
         )}
 
         {txStatus === 'pending' && (
-          <div className="w-full py-4 rounded-xl bg-slate-800 text-slate-300 font-bold uppercase text-xs tracking-widest flex items-center justify-center gap-2">
-            <Loader2 className="animate-spin" size={16} /> 
+          <div className="w-full py-4 rounded-xl bg-slate-800/80 border border-slate-700/50 text-slate-300 font-medium text-sm flex items-center justify-center gap-3">
+            <Loader2 className="animate-spin text-indigo-400" size={18} /> 
             Confirm in Wallet...
           </div>
         )}
 
-        {txStatus === 'submitted' && txHash && (
-          <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-400">
-            <div className="flex items-center gap-3 mb-3">
-              <Loader2 className="animate-spin" size={18} />
-              <span className="font-semibold">Confirming on chain...</span>
-            </div>
-            <a 
-              href={`https://testnet.arcscan.app/tx/${txHash}`}
-              target="_blank"
-              rel="noreferrer"
-              className="flex items-center gap-1 text-sm text-amber-300 hover:text-amber-200 underline"
-            >
-              View on Explorer <ExternalLink size={14} />
-            </a>
+        {txStatus === 'approved' && (
+          <div className="w-full py-4 rounded-xl bg-slate-800/80 border border-cyan-500/30 text-cyan-300 font-medium text-sm flex items-center justify-center gap-3 animate-pulse">
+            <CheckCircle2 className="text-cyan-400" size={18} /> 
+            Transaction Approved
           </div>
         )}
 
-        {txStatus === 'confirmed' && txHash && (
-          <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-400">
-            <div className="flex items-center gap-3 mb-3">
-              <CheckCircle2 size={18} />
-              <span className="font-semibold">Escrow Created Successfully!</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <a 
-                href={`https://testnet.arcscan.app/tx/${txHash}`}
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center gap-1 text-sm text-emerald-300 hover:text-emerald-200 underline"
-              >
-                View on Explorer <ExternalLink size={14} />
-              </a>
-              <button 
-                onClick={handleReset}
-                className="px-4 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 rounded-lg transition-colors text-sm font-semibold"
-              >
-                Create Another
-              </button>
-            </div>
-          </div>
-        )}
-
-        {txStatus === 'failed' && txHash && (
-          <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400">
-            <div className="flex items-center gap-3 mb-3">
-              <XCircle size={18} />
-              <span className="font-semibold">Transaction Failed</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <a 
-                href={`https://testnet.arcscan.app/tx/${txHash}`}
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center gap-1 text-sm text-red-300 hover:text-red-200 underline"
-              >
-                View on Explorer <ExternalLink size={14} />
-              </a>
-              <button 
-                onClick={handleReset}
-                className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 rounded-lg transition-colors text-sm font-semibold"
-              >
-                Try Again
-              </button>
-            </div>
+        {txStatus === 'submitted' && (
+          <div className="w-full py-4 rounded-xl bg-slate-800/80 border border-indigo-500/30 text-indigo-300 font-medium text-sm flex items-center justify-center gap-3">
+            <Loader2 className="animate-spin text-indigo-400" size={18} /> 
+            Confirming on chain...
           </div>
         )}
 

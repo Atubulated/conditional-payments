@@ -241,9 +241,26 @@ export default function Home() {
             </div>
             <div>
               <h4 className="font-semibold text-white mb-3 text-sm">Network</h4>
-              <div className="space-y-2 text-sm text-slate-500">
-                <div>Ethereum Sepolia</div>
-                <div className="font-mono text-xs">0x5D40...6863</div>
+              <div className="space-y-2 text-sm">
+                <a 
+                  href="https://testnet.arcscan.app" 
+                  target="_blank" 
+                  rel="noreferrer"
+                  className="text-indigo-400 hover:text-indigo-300 transition-colors flex items-center gap-1 w-fit"
+                >
+                  Arc Testnet
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                </a>
+                <a 
+                  href="https://testnet.arcscan.app/address/0xD61869BA745f9107291a1b46C3BDc99B41849710" 
+                  target="_blank" 
+                  rel="noreferrer"
+                  className="font-mono text-xs text-slate-500 hover:text-slate-300 transition-colors block"
+                >
+                  0xD618...9710
+                </a>
               </div>
             </div>
           </div>
