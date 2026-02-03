@@ -42,6 +42,7 @@ contract ConditionalPayments is ReentrancyGuard {
 
     uint256 private _paymentIdCounter;
     mapping(uint256 => Payment) public payments;
+    mapping(address => uint256[]) private paymentsByReceiver;
 
     // ============ EVENTS ============
 
@@ -188,6 +189,9 @@ contract ConditionalPayments is ReentrancyGuard {
             pType: pType,
             status: Status.Pending
         });
+        
+        paymentsByReceiver[receiver].push(id);
+
         IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
         emit PaymentCreated(id, pType, msg.sender, receiver);
     }
@@ -195,4 +199,12 @@ contract ConditionalPayments is ReentrancyGuard {
     function getPayment(uint256 paymentId) external view returns (Payment memory) {
         return payments[paymentId];
     }
+
+    function getPaymentsForReceiver(address receiver)
+    external
+    view
+    returns (uint256[] memory)
+{
+    return paymentsByReceiver[receiver];
+}
 }
