@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAccount } from 'wagmi';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import EscrowForm from './EscrowForm';
 import ActivityList from './ActivityList';
-import { ShieldCheck, Activity, Zap, Lock, Clock, Check, XCircle, Bell, Menu, X, FileText, Settings, BarChart3, User as UserIcon } from 'lucide-react';
+import { ShieldCheck, Activity, Zap, Lock, Clock, Check, XCircle, Bell, Menu, X, FileText, Settings, BarChart3, User as UserIcon, ChevronUp } from 'lucide-react';
 
 interface Payment {
   id: string;
@@ -21,6 +21,14 @@ interface Payment {
   pType: number;
   status: number;
 }
+
+// Payment types from contract
+const PAYMENT_TYPES = {
+  SIMPLE: 0,
+  TIMELOCKED: 1,
+  MEDIATED: 2,
+  BONDED: 3
+};
 
 // Professional Hamburger Menu Component
 function HamburgerMenu({ pendingCount, onViewOffers, pendingPayments }: { pendingCount: number; onViewOffers: () => void; pendingPayments: Payment[] }) {
@@ -200,14 +208,19 @@ export default function Home() {
   const [mounted, setMounted] = useState(false);
   const [pendingPayments, setPendingPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(false);
+  const [showOffers, setShowOffers] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const CONTRACT_ADDRESS = '0x2fc47F49E13f167746E9c7DC245E003f0ECb9544';
   const ABI = [
     "function getPaymentsForReceiver(address receiver) view returns (uint256[])",
     "function getPayment(uint256 paymentId) view returns (tuple(address sender,address receiver,address arbiter,address token,uint256 amount,uint256 bondAmount,uint256 deadline,uint256 challengePeriod,bytes32 termsHash,uint8 pType,uint8 status))",
+    "function acceptTimelockedPayment(uint256 paymentId) external",
+    "function declineTimelockedPayment(uint256 paymentId) external",
     "function acceptBondedPayment(uint256 paymentId) external",
     "function releasePayment(uint256 paymentId) external",
-    "function createTimelockedPayment(address receiver,address token,uint256 amount,uint256 challengePeriod,bytes32 termsHash,uint256 deadline) external returns(uint256)"
+    "function disputePayment(uint256 paymentId) external",
+    "function resolveDispute(uint256 paymentId, address winner) external"
   ];
 
   // Prevent hydration mismatch
@@ -216,7 +229,7 @@ export default function Home() {
   }, []);
 
   // Fetch pending payments for the connected receiver
-  async function fetchPendingPayments() {
+  const fetchPendingPayments = useCallback(async () => {
     if (!address || !isConnected || typeof window === 'undefined' || !window.ethereum) return;
 
     try {
@@ -246,8 +259,8 @@ export default function Home() {
             deadline: p[6],
             challengePeriod: p[7],
             termsHash: p[8],
-            pType: p[9],
-            status: p[10]
+            pType: Number(p[9]),
+            status: Number(p[10])
           };
         })
       );
@@ -255,7 +268,7 @@ export default function Home() {
       console.log('All payments data:', paymentsData);
       
       // Filter only Pending payments (status === 0)
-      const pending = paymentsData.filter(p => Number(p.status) === 0);
+      const pending = paymentsData.filter(p => p.status === 0);
       console.log('Pending payments:', pending);
       setPendingPayments(pending);
       setLoading(false);
@@ -263,11 +276,23 @@ export default function Home() {
       console.error("Error fetching payments:", err);
       setLoading(false);
     }
+  }, [address, isConnected]);
+
+  // Get payment type name
+  function getPaymentTypeName(pType: number): string {
+    switch(pType) {
+      case PAYMENT_TYPES.TIMELOCKED: return 'Timelocked';
+      case PAYMENT_TYPES.MEDIATED: return 'Mediated';
+      case PAYMENT_TYPES.BONDED: return 'Bonded';
+      default: return 'Simple';
+    }
   }
 
-  // Accept payment - releases funds to receiver
-  async function acceptPayment(id: string) {
+  // Accept payment based on payment type
+  async function acceptPayment(payment: Payment) {
     if (!address || typeof window === 'undefined' || !window.ethereum) return;
+    
+    setActionLoading(payment.id);
     
     try {
       // @ts-ignore
@@ -276,19 +301,36 @@ export default function Home() {
       const signer = await provider.getSigner();
       const contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
 
-      const tx = await contract.releasePayment(id);
+      let tx;
+      
+      // Use correct function based on payment type
+      if (payment.pType === PAYMENT_TYPES.TIMELOCKED) {
+        tx = await contract.acceptTimelockedPayment(payment.id);
+      } else if (payment.pType === PAYMENT_TYPES.BONDED) {
+        tx = await contract.acceptBondedPayment(payment.id);
+      } else if (payment.pType === PAYMENT_TYPES.MEDIATED) {
+        // For mediated payments, receiver can release to themselves
+        tx = await contract.releasePayment(payment.id);
+      } else {
+        throw new Error('Unknown payment type');
+      }
+      
       await tx.wait();
       alert('Payment accepted! Funds released to your wallet.');
       fetchPendingPayments();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert('Failed to accept payment. Please try again.');
+      alert(`Failed to accept payment: ${err.reason || err.message || 'Please try again.'}`);
+    } finally {
+      setActionLoading(null);
     }
   }
 
-  // Decline payment - refunds to sender
-  async function declinePayment(id: string) {
+  // Decline payment based on payment type
+  async function declinePayment(payment: Payment) {
     if (!address || typeof window === 'undefined' || !window.ethereum) return;
+    
+    setActionLoading(payment.id);
     
     try {
       // @ts-ignore
@@ -297,29 +339,42 @@ export default function Home() {
       const signer = await provider.getSigner();
       const contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
 
-      const tx = await contract.releasePayment(id);
+      let tx;
+      
+      // Use correct function based on payment type
+      if (payment.pType === PAYMENT_TYPES.TIMELOCKED) {
+        tx = await contract.declineTimelockedPayment(payment.id);
+      } else if (payment.pType === PAYMENT_TYPES.MEDIATED) {
+        // For mediated, receiver can dispute
+        tx = await contract.disputePayment(payment.id);
+      } else {
+        throw new Error('Cannot decline this payment type');
+      }
+      
       await tx.wait();
-      alert('Payment declined. Funds returned to sender.');
+      alert('Payment declined.');
       fetchPendingPayments();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert('Failed to decline payment. Please try again.');
+      alert(`Failed to decline payment: ${err.reason || err.message || 'Please try again.'}`);
+    } finally {
+      setActionLoading(null);
     }
   }
 
-  // Refetch pending payments whenever the user connects
+  // Refetch pending payments whenever the user connects - but don't cause flickering
   useEffect(() => {
-    if (isConnected) {
+    if (isConnected && mounted) {
       fetchPendingPayments();
       
-      // Poll every 10 seconds for new pending payments
+      // Poll every 30 seconds instead of 10 to reduce flickering
       const interval = setInterval(() => {
         fetchPendingPayments();
-      }, 10000);
+      }, 30000);
       
       return () => clearInterval(interval);
     }
-  }, [isConnected, address]);
+  }, [isConnected, mounted, fetchPendingPayments]);
 
   if (!mounted) {
     return (
@@ -379,7 +434,7 @@ export default function Home() {
           </div>
           <div className="flex items-center gap-4">
             {isConnected && <HamburgerMenu pendingCount={pendingPayments.length} pendingPayments={pendingPayments} onViewOffers={() => {
-              // Scroll to offers section if needed
+              setShowOffers(true);
               const offersSection = document.getElementById('pending-offers');
               if (offersSection) {
                 offersSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -428,20 +483,29 @@ export default function Home() {
         </section>
       )}
 
-      {/* Pending Payments Section - Only when connected AND has payments */}
-      {isConnected && pendingPayments.length > 0 && (
+      {/* Pending Payments Section - Only when connected AND has payments AND showOffers is true */}
+      {isConnected && pendingPayments.length > 0 && showOffers && (
         <section id="pending-offers" className="max-w-6xl mx-auto px-6 pt-8 pb-4 relative z-10 scroll-mt-20">
           <div className="bg-gradient-to-r from-indigo-500/10 to-cyan-500/10 border border-indigo-500/30 rounded-2xl p-6">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="p-3 bg-indigo-500/20 rounded-xl">
-                <Bell className="w-6 h-6 text-indigo-400" />
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-indigo-500/20 rounded-xl">
+                  <Bell className="w-6 h-6 text-indigo-400" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-white">Pending Offers</h2>
+                  <p className="text-sm text-slate-400">
+                    You have {pendingPayments.length} payment{pendingPayments.length > 1 ? 's' : ''} awaiting your action
+                  </p>
+                </div>
               </div>
-              <div>
-                <h2 className="text-xl font-bold text-white">Pending Offers</h2>
-                <p className="text-sm text-slate-400">
-                  You have {pendingPayments.length} payment{pendingPayments.length > 1 ? 's' : ''} awaiting your action
-                </p>
-              </div>
+              <button
+                onClick={() => setShowOffers(false)}
+                className="p-2 rounded-lg bg-slate-800/50 hover:bg-slate-700 border border-slate-700/50 hover:border-slate-600 transition-all"
+                title="Collapse"
+              >
+                <ChevronUp className="w-5 h-5 text-slate-400" />
+              </button>
             </div>
 
             {loading ? (
@@ -451,8 +515,21 @@ export default function Home() {
             ) : (
               <div className="space-y-4">
                 {pendingPayments.map(p => {
+                  const isActionLoading = actionLoading === p.id;
                   return (
                     <div key={p.id} className="bg-slate-900/80 backdrop-blur-xl border border-slate-800/50 rounded-xl p-5">
+                      <div className="flex items-center gap-2 mb-4">
+                        <span className={`px-2 py-1 text-xs font-bold rounded-lg ${
+                          p.pType === PAYMENT_TYPES.TIMELOCKED ? 'bg-blue-500/20 text-blue-300' :
+                          p.pType === PAYMENT_TYPES.MEDIATED ? 'bg-indigo-500/20 text-indigo-300' :
+                          p.pType === PAYMENT_TYPES.BONDED ? 'bg-amber-500/20 text-amber-300' :
+                          'bg-slate-500/20 text-slate-300'
+                        }`}>
+                          {getPaymentTypeName(p.pType)}
+                        </span>
+                        <span className="text-xs text-slate-500">ID #{p.id}</span>
+                      </div>
+                      
                       <div className="grid md:grid-cols-2 gap-4 mb-4">
                         <div className="space-y-2">
                           <div>
@@ -468,30 +545,52 @@ export default function Home() {
                         </div>
                         <div className="space-y-2">
                           <div>
-                            <p className="text-xs text-slate-500 mb-1">Payment ID</p>
-                            <p className="font-mono text-sm text-slate-300">#{p.id}</p>
-                          </div>
-                          <div>
                             <p className="text-xs text-slate-500 mb-1">Deadline</p>
                             <p className="text-sm text-slate-300">
                               {new Date(Number(p.deadline) * 1000).toLocaleString()}
                             </p>
                           </div>
+                          {p.pType === PAYMENT_TYPES.TIMELOCKED && Number(p.challengePeriod) > 0 && (
+                            <div>
+                              <p className="text-xs text-slate-500 mb-1">Time Lock</p>
+                              <p className="text-sm text-slate-300">
+                                {Math.floor(Number(p.challengePeriod) / 60)} minutes
+                              </p>
+                            </div>
+                          )}
+                          {p.pType === PAYMENT_TYPES.MEDIATED && p.arbiter !== '0x0000000000000000000000000000000000000000' && (
+                            <div>
+                              <p className="text-xs text-slate-500 mb-1">Arbiter</p>
+                              <p className="font-mono text-xs text-slate-300">
+                                {p.arbiter.slice(0, 6)}...{p.arbiter.slice(-4)}
+                              </p>
+                            </div>
+                          )}
                         </div>
                       </div>
                       
                       <div className="flex gap-3 pt-4 border-t border-slate-800">
                         <button 
-                          onClick={() => acceptPayment(p.id)} 
-                          className="flex-1 px-4 py-3 bg-emerald-500 hover:bg-emerald-600 transition-colors rounded-lg text-white font-semibold flex items-center justify-center gap-2"
+                          onClick={() => acceptPayment(p)} 
+                          disabled={isActionLoading}
+                          className="flex-1 px-4 py-3 bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-500/50 transition-colors rounded-lg text-white font-semibold flex items-center justify-center gap-2"
                         >
-                          <Check className="w-5 h-5" /> Accept Payment
+                          {isActionLoading ? (
+                            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          ) : (
+                            <><Check className="w-5 h-5" /> Accept Payment</>
+                          )}
                         </button>
                         <button 
-                          onClick={() => declinePayment(p.id)} 
-                          className="flex-1 px-4 py-3 bg-red-500/20 hover:bg-red-500/30 border border-red-500/50 transition-colors rounded-lg text-red-300 font-semibold flex items-center justify-center gap-2"
+                          onClick={() => declinePayment(p)} 
+                          disabled={isActionLoading}
+                          className="flex-1 px-4 py-3 bg-red-500/20 hover:bg-red-500/30 disabled:bg-red-500/10 border border-red-500/50 transition-colors rounded-lg text-red-300 font-semibold flex items-center justify-center gap-2"
                         >
-                          <XCircle className="w-5 h-5" /> Decline
+                          {isActionLoading ? (
+                            <div className="w-5 h-5 border-2 border-red-300/30 border-t-red-300 rounded-full animate-spin" />
+                          ) : (
+                            <><XCircle className="w-5 h-5" /> Decline</>
+                          )}
                         </button>
                       </div>
                     </div>
@@ -501,6 +600,24 @@ export default function Home() {
             )}
           </div>
         </section>
+      )}
+
+      {/* Collapsed Offers Badge - Show when offers exist but section is collapsed */}
+      {isConnected && pendingPayments.length > 0 && !showOffers && (
+        <div className="max-w-6xl mx-auto px-6 pt-4 relative z-10">
+          <button
+            onClick={() => setShowOffers(true)}
+            className="w-full py-3 px-4 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 rounded-xl flex items-center justify-between transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <Bell className="w-5 h-5 text-indigo-400" />
+              <span className="text-sm font-semibold text-white">
+                {pendingPayments.length} Pending Offer{pendingPayments.length > 1 ? 's' : ''}
+              </span>
+            </div>
+            <span className="text-xs text-indigo-400">Click to expand</span>
+          </button>
+        </div>
       )}
 
       {/* Main Content */}
