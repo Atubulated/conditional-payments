@@ -201,7 +201,7 @@ export default function Home() {
   const [pendingPayments, setPendingPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const CONTRACT_ADDRESS = '0xD61869BA745f9107291a1b46C3BDc99B41849710';
+  const CONTRACT_ADDRESS = '0x2fc47F49E13f167746E9c7DC245E003f0ECb9544';
   const ABI = [
     "function getPaymentsForReceiver(address receiver) view returns (uint256[])",
     "function getPayment(uint256 paymentId) view returns (tuple(address sender,address receiver,address arbiter,address token,uint256 amount,uint256 bondAmount,uint256 deadline,uint256 challengePeriod,bytes32 termsHash,uint8 pType,uint8 status))",
@@ -615,9 +615,9 @@ export default function Home() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                   </svg>
                 </a>
-                <a href="https://testnet.arcscan.app/address/0xD61869BA745f9107291a1b46C3BDc99B41849710" target="_blank" rel="noreferrer"
+                <a href="https://testnet.arcscan.app/address/0x2fc47F49E13f167746E9c7DC245E003f0ECb9544" target="_blank" rel="noreferrer"
                    className="font-mono text-xs text-slate-500 hover:text-slate-300 transition-colors block">
-                  0xD618...9710
+                  0x2fc4...9544
                 </a>
               </div>
             </div>
