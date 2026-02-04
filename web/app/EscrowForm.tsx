@@ -122,12 +122,9 @@ export default function EscrowForm({ onPaymentCreated }: EscrowFormProps = {}) {
 
         if (receipt.status === 'success') {
           showToast('success', 'Escrow created!', `https://testnet.arcscan.app/tx/${txHash}`, 'View on Explorer');
-          
-          // Call the callback to refresh pending payments
+          // Notify parent to refresh pending payments
           if (onPaymentCreated) {
-            setTimeout(() => {
-              onPaymentCreated();
-            }, 2000); // Wait 2s for blockchain to update
+            onPaymentCreated();
           }
         } else {
           showToast('error', 'Transaction failed', `https://testnet.arcscan.app/tx/${txHash}`, 'View on Explorer');
@@ -149,7 +146,7 @@ export default function EscrowForm({ onPaymentCreated }: EscrowFormProps = {}) {
         pollingRef.current = null;
       }
     };
-  }, [txStatus, txHash, showToast, resetForm, onPaymentCreated]);
+  }, [txStatus, txHash, showToast, resetForm]);
 
   // Handle wallet rejection
   useEffect(() => {
