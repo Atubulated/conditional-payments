@@ -9,20 +9,8 @@ contract ConditionalPayments is ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     // ============ ENUMS & STRUCTS ============
-
-    enum PaymentType {
-        Simple,
-        Timelocked,
-        Mediated,
-        Bonded
-    }
-    enum Status {
-        Pending,
-        Accepted,
-        Disputed,
-        Resolved,
-        Refunded
-    }
+    enum PaymentType { Simple, Timelocked, Mediated, Bonded }
+    enum Status { Pending, Accepted, Disputed, Resolved, Refunded }
 
     struct Payment {
         address sender;
@@ -36,64 +24,26 @@ contract ConditionalPayments is ReentrancyGuard {
         bytes32 termsHash;
         PaymentType pType;
         Status status;
+        bool receiverAccepted; // NEW: tracks if receiver accepted
     }
 
     // ============ STATE ============
-
     uint256 private _paymentIdCounter;
     mapping(uint256 => Payment) public payments;
     mapping(address => uint256[]) private paymentsByReceiver;
 
     // ============ EVENTS ============
-
     event PaymentCreated(uint256 indexed id, PaymentType pType, address sender, address receiver);
     event PaymentAccepted(uint256 indexed id, address receiver);
-    event PaymentDisputed(uint256 indexed id, address indexed by);
-    event DisputeResolved(uint256 indexed id, address winner);
+    event PaymentDeclined(uint256 indexed id, address receiver);
     event PaymentRefunded(uint256 indexed id);
 
+    // ============ ERRORS ============
     error NotAuthorized();
     error InvalidStatus();
-    error TimelockActive();
-    error DeadlinePassed();
+    error DeadlineNotPassed();
 
-    // ============ CORE FUNCTIONS ============
-
-    /**
-     * @notice Option B: Mediated Payment (What you currently have)
-     */
-    function createMediatedPayment(
-        address receiver,
-        address arbiter,
-        address token,
-        uint256 amount,
-        bytes32 termsHash,
-        uint256 deadline
-    ) external nonReentrant returns (uint256 paymentId) {
-        paymentId = _createBase(receiver, arbiter, token, amount, 0, 0, termsHash, PaymentType.Mediated, deadline);
-    }
-
-    /**
-     * @notice Option C: Bonded Payment
-     * Receiver must pay a 'bond' to accept the job.
-     */
-    function createBondedPayment(
-        address receiver,
-        address token,
-        uint256 amount,
-        uint256 bondAmount,
-        bytes32 termsHash,
-        uint256 deadline
-    ) external nonReentrant returns (uint256 paymentId) {
-        paymentId = _createBase(
-            receiver, address(0), token, amount, bondAmount, 0, termsHash, PaymentType.Bonded, deadline
-        );
-    }
-
-    /**
-     * @notice Option A: Timelocked Payment
-     * After work is done, funds are locked for a 'challengePeriod' before release.
-     */
+    // ============ CREATE FUNCTIONS ============
     function createTimelockedPayment(
         address receiver,
         address token,
@@ -107,11 +57,69 @@ contract ConditionalPayments is ReentrancyGuard {
         );
     }
 
-    // ============ ACTION FUNCTIONS ============
+    function createMediatedPayment(
+        address receiver,
+        address arbiter,
+        address token,
+        uint256 amount,
+        bytes32 termsHash,
+        uint256 deadline
+    ) external nonReentrant returns (uint256 paymentId) {
+        paymentId = _createBase(
+            receiver, arbiter, token, amount, 0, 0, termsHash, PaymentType.Mediated, deadline
+        );
+    }
 
-    /**
-     * @notice Receiver accepts a Bonded payment by paying the bond
-     */
+    function createBondedPayment(
+        address receiver,
+        address token,
+        uint256 amount,
+        uint256 bondAmount,
+        bytes32 termsHash,
+        uint256 deadline
+    ) external nonReentrant returns (uint256 paymentId) {
+        paymentId = _createBase(
+            receiver, address(0), token, amount, bondAmount, 0, termsHash, PaymentType.Bonded, deadline
+        );
+    }
+
+    // ============ ACTION FUNCTIONS ============
+    function acceptTimelockedPayment(uint256 paymentId) external {
+        Payment storage payment = payments[paymentId];
+        if (msg.sender != payment.receiver) revert NotAuthorized();
+        if (payment.status != Status.Pending) revert InvalidStatus();
+        if (payment.pType != PaymentType.Timelocked) revert InvalidStatus();
+
+        payment.receiverAccepted = true;
+        payment.status = Status.Accepted;
+        emit PaymentAccepted(paymentId, msg.sender);
+    }
+
+    function declineTimelockedPayment(uint256 paymentId) external nonReentrant {
+        Payment storage payment = payments[paymentId];
+        if (msg.sender != payment.receiver) revert NotAuthorized();
+        if (payment.status != Status.Pending) revert InvalidStatus();
+        if (payment.pType != PaymentType.Timelocked) revert InvalidStatus();
+
+        payment.status = Status.Refunded;
+        IERC20(payment.token).safeTransfer(payment.sender, payment.amount);
+
+        emit PaymentDeclined(paymentId, msg.sender);
+        emit PaymentRefunded(paymentId);
+    }
+
+    function refundExpiredTimelocked(uint256 paymentId) external nonReentrant {
+        Payment storage payment = payments[paymentId];
+        if (payment.pType != PaymentType.Timelocked) revert InvalidStatus();
+        if (payment.status != Status.Pending) revert InvalidStatus();
+        if (block.timestamp <= payment.deadline + payment.challengePeriod) revert DeadlineNotPassed();
+
+        payment.status = Status.Refunded;
+        IERC20(payment.token).safeTransfer(payment.sender, payment.amount);
+
+        emit PaymentRefunded(paymentId);
+    }
+
     function acceptBondedPayment(uint256 paymentId) external nonReentrant {
         Payment storage payment = payments[paymentId];
         if (msg.sender != payment.receiver) revert NotAuthorized();
@@ -120,14 +128,9 @@ contract ConditionalPayments is ReentrancyGuard {
 
         payment.status = Status.Accepted;
         IERC20(payment.token).safeTransferFrom(msg.sender, address(this), payment.bondAmount);
-
         emit PaymentAccepted(paymentId, msg.sender);
     }
 
-    /**
-     * @notice Resolve or Release (The Happy Path)
-     * For Bonded: Receiver gets Amount + Bond back.
-     */
     function releasePayment(uint256 paymentId) external nonReentrant {
         Payment storage payment = payments[paymentId];
         if (msg.sender != payment.sender) revert NotAuthorized();
@@ -136,18 +139,12 @@ contract ConditionalPayments is ReentrancyGuard {
         payment.status = Status.Resolved;
         uint256 totalPayout = payment.amount + payment.bondAmount;
         IERC20(payment.token).safeTransfer(payment.receiver, totalPayout);
-
-        emit DisputeResolved(paymentId, payment.receiver);
     }
 
-    /**
-     * @notice Common logic for raising disputes
-     */
     function disputePayment(uint256 paymentId) external {
         Payment storage payment = payments[paymentId];
         if (msg.sender != payment.sender && msg.sender != payment.receiver) revert NotAuthorized();
         payment.status = Status.Disputed;
-        emit PaymentDisputed(paymentId, msg.sender);
     }
 
     function resolveDispute(uint256 paymentId, address winner) external nonReentrant {
@@ -158,12 +155,9 @@ contract ConditionalPayments is ReentrancyGuard {
         payment.status = Status.Resolved;
         uint256 totalPayout = payment.amount + payment.bondAmount;
         IERC20(payment.token).safeTransfer(winner, totalPayout);
-
-        emit DisputeResolved(paymentId, winner);
     }
 
     // ============ INTERNAL HELPERS ============
-
     function _createBase(
         address receiver,
         address arbiter,
@@ -187,12 +181,13 @@ contract ConditionalPayments is ReentrancyGuard {
             challengePeriod: challenge,
             termsHash: terms,
             pType: pType,
-            status: Status.Pending
+            status: Status.Pending,
+            receiverAccepted: false
         });
-        
-        paymentsByReceiver[receiver].push(id);
 
+        paymentsByReceiver[receiver].push(id);
         IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
+
         emit PaymentCreated(id, pType, msg.sender, receiver);
     }
 
@@ -200,11 +195,7 @@ contract ConditionalPayments is ReentrancyGuard {
         return payments[paymentId];
     }
 
-    function getPaymentsForReceiver(address receiver)
-    external
-    view
-    returns (uint256[] memory)
-{
-    return paymentsByReceiver[receiver];
-}
+    function getPaymentsForReceiver(address receiver) external view returns (uint256[] memory) {
+        return paymentsByReceiver[receiver];
+    }
 }

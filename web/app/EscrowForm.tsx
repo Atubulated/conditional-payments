@@ -38,7 +38,11 @@ async function getReceiptDirect(txHash: string): Promise<{ status: 'success' | '
   }
 }
 
-export default function EscrowForm() {
+interface EscrowFormProps {
+  onPaymentCreated?: () => void;
+}
+
+export default function EscrowForm({ onPaymentCreated }: EscrowFormProps = {}) {
   const { isConnected } = useAccount();
   const { showToast } = useToast();
   const [paymentMode, setPaymentMode] = useState<'Mediated' | 'Bonded' | 'Timelock'>('Mediated');
@@ -118,6 +122,13 @@ export default function EscrowForm() {
 
         if (receipt.status === 'success') {
           showToast('success', 'Escrow created!', `https://testnet.arcscan.app/tx/${txHash}`, 'View on Explorer');
+          
+          // Call the callback to refresh pending payments
+          if (onPaymentCreated) {
+            setTimeout(() => {
+              onPaymentCreated();
+            }, 2000); // Wait 2s for blockchain to update
+          }
         } else {
           showToast('error', 'Transaction failed', `https://testnet.arcscan.app/tx/${txHash}`, 'View on Explorer');
         }
@@ -138,7 +149,7 @@ export default function EscrowForm() {
         pollingRef.current = null;
       }
     };
-  }, [txStatus, txHash, showToast, resetForm]);
+  }, [txStatus, txHash, showToast, resetForm, onPaymentCreated]);
 
   // Handle wallet rejection
   useEffect(() => {
