@@ -255,7 +255,7 @@ export default function Home() {
       console.log('All payments data:', paymentsData);
       
       // Filter only Pending payments (status === 0)
-      const pending = paymentsData.filter(p => p.status === 0);
+      const pending = paymentsData.filter(p => Number(p.status) === 0);
       console.log('Pending payments:', pending);
       setPendingPayments(pending);
       setLoading(false);
