@@ -30,7 +30,7 @@ function shortenAddress(addr: string): string {
 function formatTimeAgo(timestamp: number): string {
   const now = Math.floor(Date.now() / 1000);
   const secondsAgo = now - timestamp;
-  
+
   if (secondsAgo < 60) return `${secondsAgo}s ago`;
   if (secondsAgo < 3600) return `${Math.floor(secondsAgo / 60)}m ago`;
   if (secondsAgo < 86400) return `${Math.floor(secondsAgo / 3600)}h ago`;
@@ -71,15 +71,15 @@ async function fetchEvents(): Promise<Activity[] | null> {
         params: [],
       }),
     });
-    
+
     if (!blockRes.ok) return null;
-    
+
     const blockData = await blockRes.json();
     if (!blockData.result) return null;
-    
+
     const latestBlock = parseInt(blockData.result, 16);
     const fromBlock = Math.max(0, latestBlock - 10000);
-    
+
     const logsRes = await fetch(ARC_RPC, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -95,26 +95,26 @@ async function fetchEvents(): Promise<Activity[] | null> {
         }],
       }),
     });
-    
+
     if (!logsRes.ok) return null;
-    
+
     const logsData = await logsRes.json();
-    
+
     if (!logsData.result || !Array.isArray(logsData.result)) {
       return [];
     }
-    
+
     const activities: Activity[] = await Promise.all(
       logsData.result.map(async (log: any) => {
         const paymentId = parseInt(log.topics[1], 16);
-        
+
         const data = log.data.slice(2);
         const pType = parseInt(data.slice(0, 64), 16);
         const sender = '0x' + data.slice(64 + 24, 128);
         const receiver = '0x' + data.slice(128 + 24, 192);
-        
+
         const blockTimestamp = await getBlockTimestamp(log.blockNumber);
-        
+
         return {
           id: paymentId,
           type: PAYMENT_TYPES[pType] || 'Unknown',
@@ -126,9 +126,9 @@ async function fetchEvents(): Promise<Activity[] | null> {
         };
       })
     );
-    
+
     return activities.sort((a, b) => b.blockNumber - a.blockNumber);
-    
+
   } catch (err) {
     console.error('Failed to fetch events:', err);
     return null;
@@ -146,13 +146,13 @@ export default function ActivityList() {
     } else {
       setLoading(true);
     }
-    
+
     const data = await fetchEvents();
-    
+
     if (data !== null) {
       setActivities(data);
     }
-    
+
     setLoading(false);
     setRefreshing(false);
   }, []);
@@ -165,7 +165,7 @@ export default function ActivityList() {
     const interval = setInterval(() => {
       loadActivities(true);
     }, 10000);
-    
+
     return () => clearInterval(interval);
   }, [loadActivities]);
 
@@ -178,23 +178,23 @@ export default function ActivityList() {
   return (
     <div className="w-full space-y-3">
       <div className="flex justify-between items-center px-2 mb-2">
-        <span className="text-[10px] uppercase font-bold text-slate-600 tracking-wider">
+        <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 tracking-wider">
           Live Transactions
           {activities.length > 0 && (
-            <span className="ml-2 text-indigo-400">({activities.length})</span>
+            <span className="ml-2 text-indigo-500 dark:text-indigo-400">({activities.length})</span>
           )}
         </span>
-        <button 
+        <button
           onClick={handleRefresh}
           disabled={refreshing}
-          className="text-[10px] flex items-center gap-1 text-indigo-400 hover:text-indigo-300 transition-colors disabled:opacity-50"
+          className="text-[10px] flex items-center gap-1 text-indigo-500 dark:text-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-300 transition-colors disabled:opacity-50"
         >
-          <RefreshCw size={10} className={refreshing ? 'animate-spin' : ''} /> 
+          <RefreshCw size={10} className={refreshing ? 'animate-spin' : ''} />
           {refreshing ? 'Refreshing...' : 'Refresh'}
         </button>
       </div>
 
-      <div className="bg-slate-900/50 border border-slate-800 rounded-xl overflow-hidden backdrop-blur-sm">
+      <div className="bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden backdrop-blur-sm shadow-sm">
         {loading ? (
           <div className="p-8 text-center text-slate-500 text-xs flex items-center justify-center gap-2">
             <Loader2 size={14} className="animate-spin" />
@@ -210,36 +210,36 @@ export default function ActivityList() {
               <div
                 key={`${item.txHash}-${item.id}`}
                 className={`
-                    group flex items-center justify-between p-4 hover:bg-slate-800/50 transition-all cursor-default
-                    ${index !== Math.min(activities.length, 10) - 1 ? 'border-b border-slate-800/50' : ''}
+                    group flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all cursor-default
+                    ${index !== Math.min(activities.length, 10) - 1 ? 'border-b border-slate-200 dark:border-slate-800/50' : ''}
                 `}
               >
                 <div className="flex items-center gap-4">
-                    <div className={`w-2 h-2 rounded-full ${getTypeColor(item.type)} shadow-[0_0_8px_rgba(0,0,0,0.5)]`} />
-                    <div className="flex flex-col">
-                        <span className="text-sm font-semibold text-slate-200">{item.type} Escrow</span>
-                        <span className="text-[10px] text-slate-500 font-mono flex items-center gap-1">
-                            ID: {item.id} <span className="w-0.5 h-0.5 bg-slate-600 rounded-full"/> {item.timestamp}
-                        </span>
-                    </div>
+                  <div className={`w-2 h-2 rounded-full ${getTypeColor(item.type)} shadow-[0_0_8px_rgba(0,0,0,0.5)]`} />
+                  <div className="flex flex-col">
+                    <span className="text-sm font-semibold text-slate-900 dark:text-slate-200">{item.type} Escrow</span>
+                    <span className="text-[10px] text-slate-500 font-mono flex items-center gap-1">
+                      ID: {item.id} <span className="w-0.5 h-0.5 bg-slate-400 dark:bg-slate-600 rounded-full" /> {item.timestamp}
+                    </span>
+                  </div>
                 </div>
 
-                <div className="hidden sm:flex items-center gap-2 text-xs text-slate-400 font-mono bg-slate-950/50 px-3 py-1.5 rounded-lg border border-slate-800/50">  
-                    <span className="text-slate-300">{shortenAddress(item.sender)}</span>
-                    <ArrowRight size={10} className="text-slate-600" />
-                    <span className="text-indigo-300">{shortenAddress(item.receiver)}</span>        
+                <div className="hidden sm:flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 font-mono bg-slate-100 dark:bg-slate-950/50 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800/50">
+                  <span className="text-slate-700 dark:text-slate-300">{shortenAddress(item.sender)}</span>
+                  <ArrowRight size={10} className="text-slate-400 dark:text-slate-600" />
+                  <span className="text-indigo-600 dark:text-indigo-300">{shortenAddress(item.receiver)}</span>
                 </div>
 
                 <div className="flex items-center gap-2">
-                    <a 
-                      href={`${EXPLORER_URL}/tx/${item.txHash}`} 
-                      target="_blank" 
-                      rel="noreferrer" 
-                      className="p-2 text-slate-600 hover:text-white hover:bg-slate-700 rounded-lg transition-all"
-                      title="View on Explorer"
-                    >
-                        <ExternalLink size={14} />
-                    </a>
+                  <a
+                    href={`${EXPLORER_URL}/tx/${item.txHash}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="p-2 text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-all"
+                    title="View on Explorer"
+                  >
+                    <ExternalLink size={14} />
+                  </a>
                 </div>
               </div>
             ))}
@@ -251,10 +251,10 @@ export default function ActivityList() {
 }
 
 function getTypeColor(type: string) {
-    switch(type) {
-        case 'Mediated': return 'bg-indigo-500';
-        case 'Bonded': return 'bg-amber-400';
-        case 'Timelocked': return 'bg-blue-500';
-        default: return 'bg-slate-500';
-    }
+  switch (type) {
+    case 'Mediated': return 'bg-indigo-500';
+    case 'Bonded': return 'bg-amber-400';
+    case 'Timelocked': return 'bg-blue-500';
+    default: return 'bg-slate-500';
+  }
 }

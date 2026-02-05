@@ -9,6 +9,8 @@ import {
 } from '@rainbow-me/rainbowkit';
 import { mainnet, sepolia, type Chain } from 'wagmi/chains';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ThemeProvider as NextThemesProvider } from 'next-themes';
+import { ToastProvider } from './Toast';
 
 // Define Arc Testnet
 const arcTestnet: Chain = {
@@ -48,16 +50,20 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider
-          theme={darkTheme({
-            accentColor: '#6366f1',
-            accentColorForeground: 'white',
-            borderRadius: 'large',
-            overlayBlur: 'large',
-          })}
-        >
-          {children}
-        </RainbowKitProvider>
+        <NextThemesProvider attribute="class" defaultTheme="dark" enableSystem>
+          <RainbowKitProvider
+            theme={darkTheme({
+              accentColor: '#6366f1',
+              accentColorForeground: 'white',
+              borderRadius: 'large',
+              overlayBlur: 'large',
+            })}
+          >
+            <ToastProvider>
+              {children}
+            </ToastProvider>
+          </RainbowKitProvider>
+        </NextThemesProvider>
       </QueryClientProvider>
     </WagmiProvider>
   );

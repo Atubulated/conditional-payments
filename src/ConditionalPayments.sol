@@ -36,6 +36,7 @@ contract ConditionalPayments is ReentrancyGuard {
     event PaymentCreated(uint256 indexed id, PaymentType pType, address sender, address receiver);
     event PaymentAccepted(uint256 indexed id, address receiver);
     event PaymentDeclined(uint256 indexed id, address receiver);
+    event PaymentResolved(uint256 indexed id); // NEW
     event PaymentRefunded(uint256 indexed id);
 
     // ============ ERRORS ============
@@ -108,16 +109,17 @@ contract ConditionalPayments is ReentrancyGuard {
         emit PaymentRefunded(paymentId);
     }
 
-    function refundExpiredTimelocked(uint256 paymentId) external nonReentrant {
+    function claimTimelockedPayment(uint256 paymentId) external nonReentrant {
         Payment storage payment = payments[paymentId];
         if (payment.pType != PaymentType.Timelocked) revert InvalidStatus();
-        if (payment.status != Status.Pending) revert InvalidStatus();
-        if (block.timestamp <= payment.deadline + payment.challengePeriod) revert DeadlineNotPassed();
+        // Receiver can claim if Pending or Accepted
+        if (payment.status != Status.Pending && payment.status != Status.Accepted) revert InvalidStatus();
+        if (block.timestamp <= payment.deadline) revert DeadlineNotPassed();
 
-        payment.status = Status.Refunded;
-        IERC20(payment.token).safeTransfer(payment.sender, payment.amount);
-
-        emit PaymentRefunded(paymentId);
+        payment.status = Status.Resolved;
+        IERC20(payment.token).safeTransfer(payment.receiver, payment.amount);
+        
+        emit PaymentResolved(paymentId);
     }
 
     function acceptBondedPayment(uint256 paymentId) external nonReentrant {
@@ -127,6 +129,7 @@ contract ConditionalPayments is ReentrancyGuard {
         if (payment.pType != PaymentType.Bonded) revert InvalidStatus();
 
         payment.status = Status.Accepted;
+        // Verify transfer success (SafeERC20 reverts on failure)
         IERC20(payment.token).safeTransferFrom(msg.sender, address(this), payment.bondAmount);
         emit PaymentAccepted(paymentId, msg.sender);
     }
@@ -139,6 +142,8 @@ contract ConditionalPayments is ReentrancyGuard {
         payment.status = Status.Resolved;
         uint256 totalPayout = payment.amount + payment.bondAmount;
         IERC20(payment.token).safeTransfer(payment.receiver, totalPayout);
+        
+        emit PaymentResolved(paymentId);
     }
 
     function disputePayment(uint256 paymentId) external {

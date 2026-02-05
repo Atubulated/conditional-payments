@@ -23,14 +23,14 @@ async function getReceiptDirect(txHash: string): Promise<{ status: 'success' | '
         params: [txHash],
       }),
     });
-    
+
     const data = await response.json();
-    
+
     if (data.result) {
       const status = data.result.status === '0x1' ? 'success' : 'failed';
       return { status };
     }
-    
+
     return null;
   } catch (err) {
     console.error('RPC error:', err);
@@ -46,7 +46,7 @@ export default function EscrowForm({ onPaymentCreated }: EscrowFormProps = {}) {
   const { isConnected } = useAccount();
   const { showToast } = useToast();
   const [paymentMode, setPaymentMode] = useState<'Mediated' | 'Bonded' | 'Timelock'>('Mediated');
-  
+
   const { data: hash, isPending, writeContract, error, reset } = useWriteContract();
 
   const [txStatus, setTxStatus] = useState<TxStatus>('idle');
@@ -57,7 +57,7 @@ export default function EscrowForm({ onPaymentCreated }: EscrowFormProps = {}) {
   const [receiver, setReceiver] = useState('');
   const [arbiter, setArbiter] = useState('');
   const [amount, setAmount] = useState('');
-  
+
   const [days, setDays] = useState('0');
   const [hours, setHours] = useState('0');
   const [mins, setMins] = useState('0');
@@ -90,12 +90,12 @@ export default function EscrowForm({ onPaymentCreated }: EscrowFormProps = {}) {
       setTxHash(hash);
       setTxStatus('approved');
       showToast('info', 'Transaction submitted');
-      
+
       // Clear any existing timeout
       if (approvedTimeoutRef.current) {
         clearTimeout(approvedTimeoutRef.current);
       }
-      
+
       // After 2s, move to submitted state
       approvedTimeoutRef.current = setTimeout(() => {
         setTxStatus('submitted');
@@ -111,7 +111,7 @@ export default function EscrowForm({ onPaymentCreated }: EscrowFormProps = {}) {
 
     const poll = async () => {
       const receipt = await getReceiptDirect(txHash);
-      
+
       if (isCancelled) return;
 
       if (receipt) {
@@ -129,7 +129,7 @@ export default function EscrowForm({ onPaymentCreated }: EscrowFormProps = {}) {
         } else {
           showToast('error', 'Transaction failed', `https://testnet.arcscan.app/tx/${txHash}`, 'View on Explorer');
         }
-        
+
         // Reset form immediately after result
         resetForm();
       } else {
@@ -187,24 +187,24 @@ export default function EscrowForm({ onPaymentCreated }: EscrowFormProps = {}) {
       return;
     }
 
-    const fn = paymentMode === 'Mediated' 
-      ? 'createMediatedPayment' 
-      : paymentMode === 'Bonded' 
-        ? 'createBondedPayment' 
+    const fn = paymentMode === 'Mediated'
+      ? 'createMediatedPayment'
+      : paymentMode === 'Bonded'
+        ? 'createBondedPayment'
         : 'createTimelockedPayment';
-    
+
     const zeroBytes = '0x0000000000000000000000000000000000000000000000000000000000000000' as `0x${string}`;
     const deadline = BigInt(Math.floor(Date.now() / 1000) + 86400);
 
-    const args = paymentMode === 'Mediated' 
+    const args = paymentMode === 'Mediated'
       ? [receiver as `0x${string}`, arbiter as `0x${string}`, USDC_ADDRESS as `0x${string}`, parseUnits(amount, 6), zeroBytes, deadline]
       : [receiver as `0x${string}`, USDC_ADDRESS as `0x${string}`, parseUnits(amount, 6), BigInt(extraValue || '0'), zeroBytes, deadline];
 
-    writeContract({ 
-      address: CONTRACT_ADDRESS as `0x${string}`, 
-      abi: CONTRACT_ABI, 
-      functionName: fn as any, 
-      args: args as any 
+    writeContract({
+      address: CONTRACT_ADDRESS as `0x${string}`,
+      abi: CONTRACT_ABI,
+      functionName: fn as any,
+      args: args as any
     });
   };
 
@@ -221,21 +221,21 @@ export default function EscrowForm({ onPaymentCreated }: EscrowFormProps = {}) {
 
   return (
     <div className="w-full space-y-6 animate-in fade-in zoom-in-95 duration-500">
-      
+
       {/* Mode Selection */}
-      <div className="bg-slate-950/80 p-1.5 rounded-xl border border-slate-800 flex">
+      <div className="bg-slate-100 dark:bg-slate-950/80 p-1.5 rounded-xl border border-slate-200 dark:border-slate-800 flex transition-colors">
         {(['Mediated', 'Bonded', 'Timelock'] as const).map((m) => (
-          <button 
-            key={m} 
-            onClick={() => !isFormDisabled && setPaymentMode(m)} 
+          <button
+            key={m}
+            onClick={() => !isFormDisabled && setPaymentMode(m)}
             disabled={isFormDisabled}
             className={`flex-1 py-2.5 text-[10px] font-bold uppercase tracking-widest rounded-lg transition-all duration-300 relative z-10 
-              ${paymentMode === m ? 'text-white shadow-lg' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/50'}
+              ${paymentMode === m ? 'text-indigo-600 dark:text-white shadow-sm dark:shadow-lg bg-white dark:bg-transparent' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-200/50 dark:hover:bg-slate-800/50'}
               ${isFormDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             {m}
             {paymentMode === m && (
-              <div className="absolute inset-0 bg-indigo-600 rounded-lg -z-10 shadow-[0_0_15px_-3px_rgba(79,70,229,0.5)]" />
+              <div className="absolute inset-0 bg-white dark:bg-indigo-600 rounded-lg -z-10 shadow-sm dark:shadow-[0_0_15px_-3px_rgba(79,70,229,0.5)] border border-slate-200 dark:border-none" />
             )}
           </button>
         ))}
@@ -243,19 +243,19 @@ export default function EscrowForm({ onPaymentCreated }: EscrowFormProps = {}) {
 
       {/* Form */}
       <div className="space-y-5">
-        
+
         {/* Receiver */}
         <div className="space-y-1.5">
-          <label className="text-[10px] uppercase font-bold text-slate-400 ml-1 flex items-center gap-1">
-            <User size={12} className="text-indigo-400" /> Receiver Address
+          <label className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 ml-1 flex items-center gap-1">
+            <User size={12} className="text-indigo-500 dark:text-indigo-400" /> Receiver Address
           </label>
           <div className="relative">
-            <input 
-              placeholder="0x..." 
+            <input
+              placeholder="0x..."
               value={receiver}
               disabled={isFormDisabled}
-              className="w-full bg-slate-950 border border-slate-800 hover:border-slate-700 focus:border-indigo-500/50 p-3.5 pl-4 rounded-xl text-slate-200 text-sm outline-none transition-all shadow-inner font-mono disabled:opacity-50" 
-              onChange={(e) => setReceiver(e.target.value)} 
+              className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 focus:border-indigo-500/50 p-3.5 pl-4 rounded-xl text-slate-900 dark:text-slate-200 text-sm outline-none transition-all shadow-sm dark:shadow-inner font-mono disabled:opacity-50 disabled:bg-slate-50 dark:disabled:bg-slate-900/50"
+              onChange={(e) => setReceiver(e.target.value)}
             />
             {receiver.length === 42 && receiver.startsWith('0x') && (
               <CheckCircle2 size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500" />
@@ -266,15 +266,15 @@ export default function EscrowForm({ onPaymentCreated }: EscrowFormProps = {}) {
         {/* Arbiter (Mediated only) */}
         {paymentMode === 'Mediated' && (
           <div className="space-y-1.5 animate-in slide-in-from-top-2">
-            <label className="text-[10px] uppercase font-bold text-slate-400 ml-1 flex items-center gap-1">
-              <Shield size={12} className="text-indigo-400" /> Arbiter Address
+            <label className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 ml-1 flex items-center gap-1">
+              <Shield size={12} className="text-indigo-500 dark:text-indigo-400" /> Arbiter Address
             </label>
-            <input 
-              placeholder="0x..." 
+            <input
+              placeholder="0x..."
               value={arbiter}
               disabled={isFormDisabled}
-              className="w-full bg-slate-950 border border-slate-800 hover:border-slate-700 focus:border-indigo-500/50 p-3.5 pl-4 rounded-xl text-slate-200 text-sm outline-none transition-all shadow-inner font-mono disabled:opacity-50" 
-              onChange={(e) => setArbiter(e.target.value)} 
+              className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 focus:border-indigo-500/50 p-3.5 pl-4 rounded-xl text-slate-900 dark:text-slate-200 text-sm outline-none transition-all shadow-sm dark:shadow-inner font-mono disabled:opacity-50 disabled:bg-slate-50 dark:disabled:bg-slate-900/50"
+              onChange={(e) => setArbiter(e.target.value)}
             />
           </div>
         )}
@@ -282,24 +282,24 @@ export default function EscrowForm({ onPaymentCreated }: EscrowFormProps = {}) {
         {/* Timelock Duration */}
         {paymentMode === 'Timelock' && (
           <div className="space-y-1.5 animate-in slide-in-from-top-2">
-            <label className="text-[10px] uppercase font-bold text-slate-400 ml-1 flex items-center gap-1">
-              <Clock size={12} className="text-indigo-400" /> Unlock Duration
+            <label className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 ml-1 flex items-center gap-1">
+              <Clock size={12} className="text-indigo-500 dark:text-indigo-400" /> Unlock Duration
             </label>
             <div className="grid grid-cols-3 gap-3">
               {[
-                { label: 'Days', fn: setDays, val: days }, 
-                { label: 'Hours', fn: setHours, val: hours }, 
+                { label: 'Days', fn: setDays, val: days },
+                { label: 'Hours', fn: setHours, val: hours },
                 { label: 'Mins', fn: setMins, val: mins }
               ].map((item) => (
                 <div key={item.label} className="relative">
-                  <input 
-                    type="number" 
-                    value={item.val} 
+                  <input
+                    type="number"
+                    value={item.val}
                     disabled={isFormDisabled}
-                    onChange={(e) => item.fn(e.target.value)} 
-                    className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500/50 p-3 rounded-xl text-center text-slate-200 text-sm outline-none transition-all font-mono disabled:opacity-50" 
+                    onChange={(e) => item.fn(e.target.value)}
+                    className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 focus:border-indigo-500/50 p-3 rounded-xl text-center text-slate-900 dark:text-slate-200 text-sm outline-none transition-all font-mono disabled:opacity-50 disabled:bg-slate-50 dark:disabled:bg-slate-900/50"
                   />
-                  <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-[9px] text-slate-600 uppercase font-bold tracking-wider">{item.label}</span>
+                  <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-[9px] text-slate-500 dark:text-slate-600 uppercase font-bold tracking-wider">{item.label}</span>
                 </div>
               ))}
             </div>
@@ -309,33 +309,33 @@ export default function EscrowForm({ onPaymentCreated }: EscrowFormProps = {}) {
 
         {/* Amount */}
         <div className="space-y-1.5">
-          <label className="text-[10px] uppercase font-bold text-slate-400 ml-1 flex items-center gap-1">
-            <DollarSign size={12} className="text-indigo-400" /> Amount
+          <label className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 ml-1 flex items-center gap-1">
+            <DollarSign size={12} className="text-indigo-500 dark:text-indigo-400" /> Amount
           </label>
           <div className="relative">
-            <input 
-              placeholder="0.00" 
+            <input
+              placeholder="0.00"
               type="number"
               value={amount}
               disabled={isFormDisabled}
-              className="w-full bg-slate-950 border border-slate-800 hover:border-slate-700 focus:border-indigo-500/50 p-3.5 pl-4 pr-16 rounded-xl text-slate-200 text-lg outline-none transition-all shadow-inner font-mono disabled:opacity-50" 
-              onChange={(e) => setAmount(e.target.value)} 
+              className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 focus:border-indigo-500/50 p-3.5 pl-4 pr-16 rounded-xl text-slate-900 dark:text-slate-200 text-lg outline-none transition-all shadow-sm dark:shadow-inner font-mono disabled:opacity-50 disabled:bg-slate-50 dark:disabled:bg-slate-900/50"
+              onChange={(e) => setAmount(e.target.value)}
             />
-            <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 text-xs font-bold bg-slate-900 px-2 py-1 rounded border border-slate-800">
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 text-xs font-bold bg-slate-100 dark:bg-slate-900 px-2 py-1 rounded border border-slate-200 dark:border-slate-800">
               USDC
             </div>
           </div>
         </div>
 
         {/* Status-based Button/Indicator */}
-        
+
         {txStatus === 'idle' && (
-          <button 
-            onClick={handleCreate} 
+          <button
+            onClick={handleCreate}
             disabled={!amount || !receiver}
-            className={`w-full py-4 rounded-xl font-bold uppercase text-xs tracking-widest transition-all shadow-lg flex items-center justify-center gap-2
-              ${!amount || !receiver 
-                ? 'bg-slate-800 text-slate-400 cursor-not-allowed' 
+            className={`w-full py-4 rounded-xl font-bold uppercase text-xs tracking-widest transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2
+              ${!amount || !receiver
+                ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed'
                 : 'bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white shadow-indigo-500/20 hover:shadow-indigo-500/40 transform hover:-translate-y-0.5'}`}
           >
             Create {paymentMode} Escrow
@@ -343,22 +343,22 @@ export default function EscrowForm({ onPaymentCreated }: EscrowFormProps = {}) {
         )}
 
         {txStatus === 'pending' && (
-          <div className="w-full py-4 rounded-xl bg-slate-800/80 border border-slate-700/50 text-slate-300 font-medium text-sm flex items-center justify-center gap-3">
-            <Loader2 className="animate-spin text-indigo-400" size={18} /> 
+          <div className="w-full py-4 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/50 text-slate-600 dark:text-slate-300 font-medium text-sm flex items-center justify-center gap-3">
+            <Loader2 className="animate-spin text-indigo-500 dark:text-indigo-400" size={18} />
             Confirm in Wallet...
           </div>
         )}
 
         {txStatus === 'approved' && (
-          <div className="w-full py-4 rounded-xl bg-slate-800/80 border border-cyan-500/30 text-cyan-300 font-medium text-sm flex items-center justify-center gap-3 animate-pulse">
-            <CheckCircle2 className="text-cyan-400" size={18} /> 
+          <div className="w-full py-4 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-cyan-500/30 text-cyan-600 dark:text-cyan-300 font-medium text-sm flex items-center justify-center gap-3 animate-pulse">
+            <CheckCircle2 className="text-cyan-500 dark:text-cyan-400" size={18} />
             Transaction Approved
           </div>
         )}
 
         {txStatus === 'submitted' && (
-          <div className="w-full py-4 rounded-xl bg-slate-800/80 border border-indigo-500/30 text-indigo-300 font-medium text-sm flex items-center justify-center gap-3">
-            <Loader2 className="animate-spin text-indigo-400" size={18} /> 
+          <div className="w-full py-4 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-indigo-500/30 text-indigo-600 dark:text-indigo-300 font-medium text-sm flex items-center justify-center gap-3">
+            <Loader2 className="animate-spin text-indigo-500 dark:text-indigo-400" size={18} />
             Confirming on chain...
           </div>
         )}

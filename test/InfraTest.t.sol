@@ -59,7 +59,7 @@ contract MockToken is IERC20 {
             infra.resolveDispute(pId, receiver);
 
             // Check if status is Resolved
-            (,,,,,,,,,, ConditionalPayments.Status status) = infra.payments(pId);
+            (,,,,,,,,,, ConditionalPayments.Status status,) = infra.payments(pId);
             assertEq(uint256(status), uint256(ConditionalPayments.Status.Resolved));
         }
     }
