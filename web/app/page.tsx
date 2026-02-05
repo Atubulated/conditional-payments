@@ -246,7 +246,7 @@ function HamburgerMenu({
               </div>
               <div className="flex-1 text-left">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold text-white">{item.label}</span>
+                  <span className="text-sm font-semibold text-slate-900 dark:text-white">{item.label}</span>
                 </div>
                 <p className="text-xs text-slate-500 mt-0.5">{item.description}</p>
               </div>
@@ -673,10 +673,10 @@ export default function Home() {
               </div>
             </div>
             <div>
-              <h4 className="font-semibold text-white mb-3 text-sm">Network</h4>
+              <h4 className="font-semibold text-slate-900 dark:text-white mb-3 text-sm">Network</h4>
               <div className="space-y-2 text-sm">
                 <a href="https://testnet.arcscan.app" target="_blank" rel="noreferrer"
-                  className="text-indigo-400 hover:text-indigo-300 transition-colors flex items-center gap-1 w-fit">
+                  className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 transition-colors flex items-center gap-1 w-fit">
                   Arc Testnet
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
