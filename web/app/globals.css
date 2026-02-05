@@ -2,9 +2,88 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ===== CSS CUSTOM PROPERTIES FOR THEMING ===== */
+:root {
+  /* Light Theme Colors */
+  --bg-primary: #f8fafc;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f1f5f9;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f8fafc;
+
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+
+  --border-primary: #e2e8f0;
+  --border-secondary: #cbd5e1;
+
+  --accent-primary: #6366f1;
+  --accent-secondary: #818cf8;
+  --accent-glow: rgba(99, 102, 241, 0.15);
+
+  /* Shadows for Light Theme */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+  --shadow-glow: 0 0 40px rgba(99, 102, 241, 0.12);
+
+  /* Particle Colors for Light Theme */
+  --particle-primary: rgba(99, 102, 241, 0.5);
+  --particle-secondary: rgba(34, 211, 238, 0.4);
+
+  /* Scrollbar */
+  --scrollbar-track: #f1f5f9;
+  --scrollbar-thumb: #cbd5e1;
+  --scrollbar-thumb-hover: #94a3b8;
+}
+
+.dark {
+  /* Dark Theme Colors */
+  --bg-primary: #020617;
+  --bg-secondary: #0f172a;
+  --bg-tertiary: #1e293b;
+  --bg-card: rgba(15, 23, 42, 0.8);
+  --bg-card-hover: rgba(30, 41, 59, 0.8);
+
+  --text-primary: #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --text-muted: #64748b;
+
+  --border-primary: rgba(51, 65, 85, 0.5);
+  --border-secondary: rgba(71, 85, 105, 0.5);
+
+  --accent-primary: #818cf8;
+  --accent-secondary: #6366f1;
+  --accent-glow: rgba(99, 102, 241, 0.25);
+
+  /* Shadows for Dark Theme (Glows) */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -4px rgba(0, 0, 0, 0.4);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.4);
+  --shadow-glow: 0 0 60px rgba(99, 102, 241, 0.2);
+
+  /* Particle Colors for Dark Theme */
+  --particle-primary: rgba(99, 102, 241, 0.8);
+  --particle-secondary: rgba(34, 211, 238, 0.6);
+
+  /* Scrollbar */
+  --scrollbar-track: #0f172a;
+  --scrollbar-thumb: #334155;
+  --scrollbar-thumb-hover: #475569;
+}
+
 /* ===== BASE ===== */
 html {
   scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* ===== SCROLLBAR ===== */
@@ -13,16 +92,30 @@ html {
 }
 
 ::-webkit-scrollbar-track {
-  background: #0f172a;
+  background: var(--scrollbar-track);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #334155;
+  background: var(--scrollbar-thumb);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+  background: var(--scrollbar-thumb-hover);
+}
+
+/* Custom scrollbar for menu */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--border-primary);
+  border-radius: 2px;
 }
 
 /* ===== FLOATING PARTICLES ===== */
@@ -30,16 +123,25 @@ html {
   0% {
     bottom: -10px;
     opacity: 0;
+    transform: translateX(0);
   }
-  10% {
-    opacity: 0.6;
+
+  5% {
+    opacity: 1;
   }
-  90% {
-    opacity: 0.6;
+
+  50% {
+    transform: translateX(10px);
   }
+
+  95% {
+    opacity: 1;
+  }
+
   100% {
     bottom: 100vh;
     opacity: 0;
+    transform: translateX(-10px);
   }
 }
 
@@ -47,43 +149,54 @@ html {
   0% {
     bottom: -10px;
     opacity: 0;
+    transform: translateX(0);
   }
-  10% {
-    opacity: 0.4;
+
+  5% {
+    opacity: 0.8;
   }
-  90% {
-    opacity: 0.4;
+
+  50% {
+    transform: translateX(-15px);
   }
+
+  95% {
+    opacity: 0.8;
+  }
+
   100% {
     bottom: 100vh;
     opacity: 0;
+    transform: translateX(15px);
   }
 }
 
 .particle {
   position: absolute;
   bottom: -10px;
-  width: 3px;
-  height: 3px;
-  background: rgba(99, 102, 241, 0.8);
+  width: 4px;
+  height: 4px;
+  background: var(--particle-primary);
   border-radius: 50%;
   pointer-events: none;
-  animation: float-up 20s linear infinite;
+  animation: float-up 18s ease-in-out infinite;
+  box-shadow: 0 0 6px var(--particle-primary);
 }
 
 .particle-slow {
-  animation: float-up-slow 28s linear infinite;
+  animation: float-up-slow 25s ease-in-out infinite;
 }
 
 .particle-sm {
-  width: 2px;
-  height: 2px;
+  width: 3px;
+  height: 3px;
 }
 
 .particle-lg {
-  width: 4px;
-  height: 4px;
-  background: rgba(34, 211, 238, 0.6);
+  width: 5px;
+  height: 5px;
+  background: var(--particle-secondary);
+  box-shadow: 0 0 8px var(--particle-secondary);
 }
 
 /* ===== ANIMATIONS ===== */
@@ -92,6 +205,7 @@ html {
     opacity: 0;
     transform: translateY(10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -107,6 +221,7 @@ html {
     opacity: 0;
     transform: translateX(100%);
   }
+
   to {
     opacity: 1;
     transform: translateX(0);
@@ -117,6 +232,22 @@ html {
   animation: slide-in 0.3s ease-out forwards;
 }
 
+@keyframes pulse-glow {
+
+  0%,
+  100% {
+    box-shadow: 0 0 20px var(--accent-glow);
+  }
+
+  50% {
+    box-shadow: 0 0 40px var(--accent-glow);
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
 /* ===== SHIELD WATERMARK ===== */
 .shield-watermark {
   position: fixed;
@@ -125,9 +256,35 @@ html {
   transform: translate(-50%, -50%);
   width: 500px;
   height: 500px;
-  opacity: 0.06;
   pointer-events: none;
   z-index: 0;
+  transition: opacity 0.3s ease;
+}
+
+/* Light theme - subtle watermark */
+:root .shield-watermark {
+  opacity: 0.04;
+}
+
+:root .shield-watermark svg path:first-child {
+  fill: #6366f1;
+}
+
+:root .shield-watermark svg path:last-child {
+  fill: #f8fafc;
+}
+
+/* Dark theme - more visible watermark */
+.dark .shield-watermark {
+  opacity: 0.06;
+}
+
+.dark .shield-watermark svg path:first-child {
+  fill: #6366f1;
+}
+
+.dark .shield-watermark svg path:last-child {
+  fill: #0f172a;
 }
 
 @media (max-width: 768px) {
@@ -141,6 +298,7 @@ html {
 .footer-link {
   position: relative;
   transition: color 0.2s ease;
+  color: var(--text-muted);
 }
 
 .footer-link::after {
@@ -155,7 +313,7 @@ html {
 }
 
 .footer-link:hover {
-  color: #e2e8f0;
+  color: var(--text-secondary);
 }
 
 .footer-link:hover::after {
@@ -194,31 +352,41 @@ html {
   box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4) !important;
 }
 
-/* Chain/Network selector button */
+/* Chain/Network selector button - Theme aware */
 [data-testid="rk-chain-button"] {
-  background: rgba(30, 41, 59, 0.8) !important;
-  border: 1px solid rgba(99, 102, 241, 0.3) !important;
   border-radius: 50px !important;
   padding: 6px 12px !important;
   transition: all 0.2s ease !important;
 }
 
-[data-testid="rk-chain-button"]:hover {
+:root [data-testid="rk-chain-button"] {
+  background: rgba(241, 245, 249, 0.9) !important;
+  border: 1px solid rgba(203, 213, 225, 0.8) !important;
+}
+
+:root [data-testid="rk-chain-button"]:hover {
+  border-color: rgba(99, 102, 241, 0.5) !important;
+  background: rgba(255, 255, 255, 1) !important;
+}
+
+.dark [data-testid="rk-chain-button"] {
+  background: rgba(30, 41, 59, 0.8) !important;
+  border: 1px solid rgba(99, 102, 241, 0.3) !important;
+}
+
+.dark [data-testid="rk-chain-button"]:hover {
   border-color: rgba(99, 102, 241, 0.6) !important;
   background: rgba(30, 41, 59, 1) !important;
 }
 
 /* ===== RAINBOWKIT MODAL FIX ===== */
-/* Ensure modal appears as centered overlay, not inline content */
-
 [data-rk] [role="dialog"] {
   position: fixed !important;
   z-index: 9999 !important;
 }
 
-/* The backdrop/overlay container */
-body > div[data-rk] > div[aria-hidden="false"],
-body > div[data-rk] > div:has([role="dialog"]) {
+body>div[data-rk]>div[aria-hidden="false"],
+body>div[data-rk]>div:has([role="dialog"]) {
   position: fixed !important;
   top: 0 !important;
   left: 0 !important;
@@ -230,4 +398,32 @@ body > div[data-rk] > div:has([role="dialog"]) {
   justify-content: center !important;
   background: rgba(0, 0, 0, 0.6) !important;
   backdrop-filter: blur(4px) !important;
+}
+
+/* ===== SELECTION ===== */
+::selection {
+  background: rgba(99, 102, 241, 0.3);
+  color: var(--text-primary);
+}
+
+/* ===== FOCUS VISIBLE ===== */
+:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+/* ===== ACCESSIBILITY ===== */
+@media (prefers-reduced-motion: reduce) {
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .particle {
+    display: none;
+  }
 }
