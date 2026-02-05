@@ -223,7 +223,7 @@ export default function EscrowForm({ onPaymentCreated }: EscrowFormProps = {}) {
     <div className="w-full space-y-6 animate-in fade-in zoom-in-95 duration-500">
 
       {/* Mode Selection */}
-      <div className="bg-slate-100 dark:bg-midnight-950 p-1.5 rounded-xl border border-slate-200 dark:border-midnight-800 flex transition-colors">
+      <div className="bg-slate-100 dark:bg-slate-950/80 p-1.5 rounded-xl border border-slate-200 dark:border-slate-800 flex transition-colors">
         {(['Mediated', 'Bonded', 'Timelock'] as const).map((m) => (
           <button
             key={m}
@@ -235,7 +235,7 @@ export default function EscrowForm({ onPaymentCreated }: EscrowFormProps = {}) {
           >
             {m}
             {paymentMode === m && (
-              <div className="absolute inset-0 bg-white dark:bg-primary rounded-lg -z-10 shadow-sm dark:shadow-[0_0_15px_-3px_rgba(99,102,241,0.5)] border border-slate-200 dark:border-none" />
+              <div className="absolute inset-0 bg-white dark:bg-indigo-600 rounded-lg -z-10 shadow-sm dark:shadow-[0_0_15px_-3px_rgba(79,70,229,0.5)] border border-slate-200 dark:border-none" />
             )}
           </button>
         ))}
@@ -254,7 +254,7 @@ export default function EscrowForm({ onPaymentCreated }: EscrowFormProps = {}) {
               placeholder="0x..."
               value={receiver}
               disabled={isFormDisabled}
-              className="w-full bg-white dark:bg-midnight-950 border border-slate-200 dark:border-midnight-700 hover:border-slate-300 dark:hover:border-primary/50 focus:border-primary/50 p-3.5 pl-4 rounded-xl text-slate-900 dark:text-slate-200 text-sm outline-none transition-all shadow-sm dark:shadow-inner font-mono disabled:opacity-50 disabled:bg-slate-50 dark:disabled:bg-midnight-900/50"
+              className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 focus:border-indigo-500/50 p-3.5 pl-4 rounded-xl text-slate-900 dark:text-slate-200 text-sm outline-none transition-all shadow-sm dark:shadow-inner font-mono disabled:opacity-50 disabled:bg-slate-50 dark:disabled:bg-slate-900/50"
               onChange={(e) => setReceiver(e.target.value)}
             />
             {receiver.length === 42 && receiver.startsWith('0x') && (
@@ -273,7 +273,7 @@ export default function EscrowForm({ onPaymentCreated }: EscrowFormProps = {}) {
               placeholder="0x..."
               value={arbiter}
               disabled={isFormDisabled}
-              className="w-full bg-white dark:bg-midnight-950 border border-slate-200 dark:border-midnight-700 hover:border-slate-300 dark:hover:border-primary/50 focus:border-primary/50 p-3.5 pl-4 rounded-xl text-slate-900 dark:text-slate-200 text-sm outline-none transition-all shadow-sm dark:shadow-inner font-mono disabled:opacity-50 disabled:bg-slate-50 dark:disabled:bg-midnight-900/50"
+              className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 focus:border-indigo-500/50 p-3.5 pl-4 rounded-xl text-slate-900 dark:text-slate-200 text-sm outline-none transition-all shadow-sm dark:shadow-inner font-mono disabled:opacity-50 disabled:bg-slate-50 dark:disabled:bg-slate-900/50"
               onChange={(e) => setArbiter(e.target.value)}
             />
           </div>
@@ -297,7 +297,7 @@ export default function EscrowForm({ onPaymentCreated }: EscrowFormProps = {}) {
                     value={item.val}
                     disabled={isFormDisabled}
                     onChange={(e) => item.fn(e.target.value)}
-                    className="w-full bg-white dark:bg-midnight-950 border border-slate-200 dark:border-midnight-700 focus:border-primary/50 p-3 rounded-xl text-center text-slate-900 dark:text-slate-200 text-sm outline-none transition-all font-mono disabled:opacity-50 disabled:bg-slate-50 dark:disabled:bg-midnight-900/50"
+                    className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 focus:border-indigo-500/50 p-3 rounded-xl text-center text-slate-900 dark:text-slate-200 text-sm outline-none transition-all font-mono disabled:opacity-50 disabled:bg-slate-50 dark:disabled:bg-slate-900/50"
                   />
                   <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-[9px] text-slate-500 dark:text-slate-600 uppercase font-bold tracking-wider">{item.label}</span>
                 </div>
@@ -318,7 +318,7 @@ export default function EscrowForm({ onPaymentCreated }: EscrowFormProps = {}) {
               type="number"
               value={amount}
               disabled={isFormDisabled}
-              className="w-full bg-white dark:bg-midnight-950 border border-slate-200 dark:border-midnight-700 hover:border-slate-300 dark:hover:border-primary/50 focus:border-primary/50 p-3.5 pl-4 pr-16 rounded-xl text-slate-900 dark:text-slate-200 text-lg outline-none transition-all shadow-sm dark:shadow-inner font-mono disabled:opacity-50 disabled:bg-slate-50 dark:disabled:bg-midnight-900/50"
+              className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 focus:border-indigo-500/50 p-3.5 pl-4 pr-16 rounded-xl text-slate-900 dark:text-slate-200 text-lg outline-none transition-all shadow-sm dark:shadow-inner font-mono disabled:opacity-50 disabled:bg-slate-50 dark:disabled:bg-slate-900/50"
               onChange={(e) => setAmount(e.target.value)}
             />
             <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 text-xs font-bold bg-slate-100 dark:bg-slate-900 px-2 py-1 rounded border border-slate-200 dark:border-slate-800">
@@ -335,8 +335,8 @@ export default function EscrowForm({ onPaymentCreated }: EscrowFormProps = {}) {
             disabled={!amount || !receiver}
             className={`w-full py-4 rounded-xl font-bold uppercase text-xs tracking-widest transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2
               ${!amount || !receiver
-                ? 'bg-slate-200 dark:bg-midnight-800 text-slate-400 dark:text-slate-500 cursor-not-allowed'
-                : 'bg-gradient-to-r from-primary to-neon-purple text-white shadow-lg shadow-primary/30 hover:shadow-primary/50 transform hover:-translate-y-0.5'}`}
+                ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed'
+                : 'bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white shadow-indigo-500/20 hover:shadow-indigo-500/40 transform hover:-translate-y-0.5'}`}
           >
             Create {paymentMode} Escrow
           </button>

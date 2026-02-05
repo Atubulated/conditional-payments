@@ -194,7 +194,7 @@ export default function ActivityList() {
         </button>
       </div>
 
-      <div className="bg-white dark:bg-midnight-900/50 border border-slate-200 dark:border-midnight-800 rounded-xl overflow-hidden backdrop-blur-sm shadow-sm">
+      <div className="bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden backdrop-blur-sm shadow-sm">
         {loading ? (
           <div className="p-8 text-center text-slate-500 text-xs flex items-center justify-center gap-2">
             <Loader2 size={14} className="animate-spin" />
@@ -210,8 +210,8 @@ export default function ActivityList() {
               <div
                 key={`${item.txHash}-${item.id}`}
                 className={`
-                    group flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-midnight-800/50 transition-all cursor-default
-                    ${index !== Math.min(activities.length, 10) - 1 ? 'border-b border-slate-200 dark:border-midnight-800/50' : ''}
+                    group flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all cursor-default
+                    ${index !== Math.min(activities.length, 10) - 1 ? 'border-b border-slate-200 dark:border-slate-800/50' : ''}
                 `}
               >
                 <div className="flex items-center gap-4">
@@ -224,7 +224,7 @@ export default function ActivityList() {
                   </div>
                 </div>
 
-                <div className="hidden sm:flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 font-mono bg-slate-100 dark:bg-midnight-950/50 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-midnight-800/50">
+                <div className="hidden sm:flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 font-mono bg-slate-100 dark:bg-slate-950/50 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800/50">
                   <span className="text-slate-700 dark:text-slate-300">{shortenAddress(item.sender)}</span>
                   <ArrowRight size={10} className="text-slate-400 dark:text-slate-600" />
                   <span className="text-indigo-600 dark:text-indigo-300">{shortenAddress(item.receiver)}</span>

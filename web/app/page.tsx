@@ -101,7 +101,7 @@ function HamburgerMenu({
       {/* Hamburger Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2.5 rounded-lg bg-white/50 dark:bg-midnight-800/50 border border-slate-200 dark:border-midnight-700/50 hover:bg-slate-100 dark:hover:bg-midnight-700 hover:border-slate-300 dark:hover:border-midnight-600 transition-all duration-200"
+        className="relative p-2.5 rounded-lg bg-white/50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-700/50 hover:border-slate-300 dark:hover:border-slate-600/50 transition-all duration-200"
       >
         <Menu className="w-5 h-5 text-slate-700 dark:text-slate-300" />
         {pendingCount > 0 && (
@@ -118,7 +118,7 @@ function HamburgerMenu({
       )}
 
       {/* Slide-out Menu */}
-      <div className={`fixed top-0 right-0 h-full w-96 bg-white/95 dark:bg-midnight-900/95 backdrop-blur-xl border-l border-slate-200 dark:border-midnight-800 z-50 transform transition-transform duration-300 ease-out shadow-2xl ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+      <div className={`fixed top-0 right-0 h-full w-96 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-l border-slate-200 dark:border-slate-800/50 z-50 transform transition-transform duration-300 ease-out shadow-2xl ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}>
 
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-800/50">
@@ -128,7 +128,7 @@ function HamburgerMenu({
           </div>
           <button
             onClick={() => setIsOpen(false)}
-            className="p-2 rounded-lg bg-slate-100 dark:bg-midnight-800/50 hover:bg-slate-200 dark:hover:bg-midnight-700 border border-slate-200 dark:border-midnight-700/50 hover:border-slate-300 dark:hover:border-midnight-600 transition-all duration-200 group"
+            className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800/50 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700/50 hover:border-slate-300 dark:hover:border-slate-600 transition-all duration-200 group"
             aria-label="Close menu"
           >
             <X className="w-5 h-5 text-slate-500 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white transition-colors" />
@@ -487,7 +487,7 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 dark:bg-midnight-950 text-slate-900 dark:text-slate-200 relative overflow-hidden transition-colors duration-500">
+    <main className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-200 relative overflow-hidden transition-colors duration-500">
 
       {/* Background Glow */}
       <div className="fixed inset-0 -z-10 overflow-hidden">
@@ -504,7 +504,7 @@ export default function Home() {
       </div>
 
       {/* Navbar */}
-      <nav className="sticky top-0 z-50 backdrop-blur-xl bg-white/70 dark:bg-midnight-950/80 border-b border-slate-200 dark:border-midnight-800 transition-colors">
+      <nav className="sticky top-0 z-50 backdrop-blur-xl bg-white/70 dark:bg-slate-950/80 border-b border-slate-200 dark:border-slate-800/50 transition-colors">
         <div className="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-xl flex items-center justify-center shadow-lg text-white">
@@ -534,7 +534,7 @@ export default function Home() {
       {!isConnected && (
         <section className="max-w-6xl mx-auto px-6 pt-16 pb-12 relative z-10 fade-in">
           <div className="text-center max-w-3xl mx-auto">
-            <div className="inline-flex items-center gap-2 px-4 py-2 mb-6 rounded-full border border-indigo-500/30 bg-indigo-500/10 text-indigo-600 dark:text-neon-cyan text-xs font-semibold">
+            <div className="inline-flex items-center gap-2 px-4 py-2 mb-6 rounded-full border border-indigo-500/30 bg-indigo-500/10 text-indigo-600 dark:text-indigo-300 text-xs font-semibold">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75" />
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500" />
@@ -558,7 +558,7 @@ export default function Home() {
             <div className="flex flex-wrap gap-3 justify-center">
               {[{ icon: Lock, text: 'Non-Custodial' }, { icon: Clock, text: 'Time-Locked' }, { icon: Zap, text: 'Instant Settlement' }]
                 .map((feature, i) => (
-                  <div key={i} className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-midnight-800/50 border border-slate-200 dark:border-midnight-700/50 rounded-lg text-sm text-slate-700 dark:text-slate-300 shadow-sm">
+                  <div key={i} className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-lg text-sm text-slate-700 dark:text-slate-300 shadow-sm">
                     <feature.icon className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
                     {feature.text}
                   </div>
@@ -652,7 +652,7 @@ export default function Home() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-slate-200 dark:border-midnight-800 relative z-10 bg-slate-50 dark:bg-midnight-950 transition-colors">
+      <footer className="border-t border-slate-200 dark:border-slate-800/50 relative z-10 bg-slate-50 dark:bg-slate-950 transition-colors">
         <div className="max-w-6xl mx-auto px-6 py-10">
           <div className="grid md:grid-cols-3 gap-8 mb-8">
             <div>
