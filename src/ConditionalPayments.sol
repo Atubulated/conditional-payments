@@ -43,6 +43,7 @@ contract ConditionalPayments is ReentrancyGuard {
     error NotAuthorized();
     error InvalidStatus();
     error DeadlineNotPassed();
+    error TokenTransferFailed(); // NEW
 
     // ============ CREATE FUNCTIONS ============
     function createTimelockedPayment(
@@ -103,7 +104,7 @@ contract ConditionalPayments is ReentrancyGuard {
         if (payment.pType != PaymentType.Timelocked) revert InvalidStatus();
 
         payment.status = Status.Refunded;
-        IERC20(payment.token).safeTransfer(payment.sender, payment.amount);
+        _safeTransfer(payment.token, payment.sender, payment.amount);
 
         emit PaymentDeclined(paymentId, msg.sender);
         emit PaymentRefunded(paymentId);
@@ -117,7 +118,7 @@ contract ConditionalPayments is ReentrancyGuard {
         if (block.timestamp <= payment.deadline) revert DeadlineNotPassed();
 
         payment.status = Status.Resolved;
-        IERC20(payment.token).safeTransfer(payment.receiver, payment.amount);
+        _safeTransfer(payment.token, payment.receiver, payment.amount);
         
         emit PaymentResolved(paymentId);
     }
@@ -129,8 +130,7 @@ contract ConditionalPayments is ReentrancyGuard {
         if (payment.pType != PaymentType.Bonded) revert InvalidStatus();
 
         payment.status = Status.Accepted;
-        // Verify transfer success (SafeERC20 reverts on failure)
-        IERC20(payment.token).safeTransferFrom(msg.sender, address(this), payment.bondAmount);
+        _safeTransferFrom(payment.token, msg.sender, address(this), payment.bondAmount);
         emit PaymentAccepted(paymentId, msg.sender);
     }
 
@@ -141,7 +141,7 @@ contract ConditionalPayments is ReentrancyGuard {
 
         payment.status = Status.Resolved;
         uint256 totalPayout = payment.amount + payment.bondAmount;
-        IERC20(payment.token).safeTransfer(payment.receiver, totalPayout);
+        _safeTransfer(payment.token, payment.receiver, totalPayout);
         
         emit PaymentResolved(paymentId);
     }
@@ -159,7 +159,7 @@ contract ConditionalPayments is ReentrancyGuard {
 
         payment.status = Status.Resolved;
         uint256 totalPayout = payment.amount + payment.bondAmount;
-        IERC20(payment.token).safeTransfer(winner, totalPayout);
+        _safeTransfer(payment.token, winner, totalPayout);
     }
 
     // ============ INTERNAL HELPERS ============
@@ -191,9 +191,49 @@ contract ConditionalPayments is ReentrancyGuard {
         });
 
         paymentsByReceiver[receiver].push(id);
-        IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
+        _safeTransferFrom(token, msg.sender, address(this), amount);
 
         emit PaymentCreated(id, pType, msg.sender, receiver);
+    }
+
+    function _safeTransfer(address token, address to, uint256 amount) internal {
+        (bool success, bytes memory data) = token.call(abi.encodeWithSelector(IERC20.transfer.selector, to, amount));
+        if (!success) {
+            if (data.length > 0) {
+                // bubble up revert reason
+                assembly {
+                    let returndata_size := mload(data)
+                    revert(add(32, data), returndata_size)
+                }
+            } else {
+                revert TokenTransferFailed();
+            }
+        }
+        
+        // Also check if return data (if present) is true
+        if (data.length > 0 && !abi.decode(data, (bool))) {
+            revert TokenTransferFailed();
+        }
+    }
+
+    function _safeTransferFrom(address token, address from, address to, uint256 amount) internal {
+        (bool success, bytes memory data) = token.call(abi.encodeWithSelector(IERC20.transferFrom.selector, from, to, amount));
+        if (!success) {
+            if (data.length > 0) {
+                // bubble up revert reason
+                assembly {
+                    let returndata_size := mload(data)
+                    revert(add(32, data), returndata_size)
+                }
+            } else {
+                revert TokenTransferFailed();
+            }
+        }
+        
+        // Also check if return data (if present) is true
+        if (data.length > 0 && !abi.decode(data, (bool))) {
+            revert TokenTransferFailed();
+        }
     }
 
     function getPayment(uint256 paymentId) external view returns (Payment memory) {
