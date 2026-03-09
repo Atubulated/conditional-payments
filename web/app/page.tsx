@@ -1,699 +1,700 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
-import { useAccount } from 'wagmi';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useAccount, useWriteContract, useReadContract } from 'wagmi';
+import { formatUnits } from 'viem';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import EscrowForm from './EscrowForm';
 import ActivityList from './ActivityList';
+import SlashWarningModal from './SlashWarningModal'; 
+import { USDC_ADDRESS, ERC20_ABI, CONTRACT_ADDRESS, CONTRACT_ABI } from './constants';
 import { useToast } from './Toast';
-import { ThemeToggle } from './ThemeToggle';
 import {
-  Shield,
-  ShieldCheck, // Added back
-  Activity,    // Added back
-  CheckCircle2,
-  XCircle,
-  Clock,
-  AlertCircle,
-  ArrowRight,
-  Menu,
-  X,
-  Bell,
-  Settings,
-  User as UserIcon,
-  FileText,
-  BarChart3,
-  Check,
-  Zap,
-  Lock
+  ShieldCheck, Bell, Activity as ActivityIcon, CheckCircle2, Clock, PlusCircle, X, AlertTriangle, Snowflake, Mail, CheckCircle, XCircle, ChevronRight, ChevronsRight, ChevronsDown, Lock, Code2, MessageSquareQuote, Loader2, Wallet
 } from 'lucide-react';
 
+/* -------------------------------------------------------------------------- */
+/* TYPES & CONSTANTS                                                          */
+/* -------------------------------------------------------------------------- */
+
 interface Payment {
-  id: string;
-  sender: string;
-  receiver: string;
-  arbiter: string;
-  token: string;
-  amount: bigint;
-  bondAmount: bigint;
-  deadline: bigint;
-  challengePeriod: bigint;
-  termsHash: string;
-  pType: number;
-  status: number;
+  id: string; sender: string; receiver: string; arbiter: string; token: string;
+  amount: bigint; bondAmount: bigint; deadline: bigint; availableAt: bigint; 
+  acceptedAt: bigint; termsHash: string; pType: number; status: number;
+  resolvedTo: string; 
 }
 
-// Payment types from contract
-const PAYMENT_TYPES = {
-  SIMPLE: 0,
-  TIMELOCKED: 1,
-  MEDIATED: 2,
-  BONDED: 3
-};
+const PAYMENT_TYPES = { SIMPLE: 0, TIMELOCKED: 1, MEDIATED: 2, BONDED: 3 };
+const ARC_RPC = 'https://rpc.testnet.arc.network';
 
-// Professional Hamburger Menu Component
-function HamburgerMenu({
-  pendingCount,
-  pendingPayments,
-  onAccept,
-  onDecline,
-  onClaim,
-  actionLoading
-}: {
-  pendingCount: number;
-  pendingPayments: Payment[];
-  onAccept: (p: Payment) => void;
-  onDecline: (p: Payment) => void;
-  onClaim: (p: Payment) => void;
-  actionLoading: string | null;
-}) {
-  const [isOpen, setIsOpen] = useState(false);
+async function getReceiptDirect(txHash: string): Promise<{ status: 'success' | 'failed' } | null> {
+  try {
+    const response = await fetch(ARC_RPC, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_getTransactionReceipt', params: [txHash] }),
+    });
+    const data = await response.json();
+    if (data.result) return { status: data.result.status === '0x1' ? 'success' : 'failed' };
+    return null; 
+  } catch (err) { return null; }
+}
 
-  const menuItems = [
-    {
-      icon: BarChart3,
-      label: 'Dashboard',
-      onClick: () => setIsOpen(false),
-      description: 'View analytics & stats'
-    },
-    {
-      icon: FileText,
-      label: 'History',
-      onClick: () => setIsOpen(false),
-      description: 'Transaction history'
-    },
-    {
-      icon: UserIcon,
-      label: 'Profile',
-      onClick: () => setIsOpen(false),
-      description: 'Account settings'
-    },
-    {
-      icon: Settings,
-      label: 'Settings',
-      onClick: () => setIsOpen(false),
-      description: 'Preferences & security'
-    }
-  ];
+async function waitForReceiptWithStatus(txHash: string, timeoutMs: number = 60000): Promise<{ status: 'success' | 'failed' }> {
+  const startTime = Date.now();
+  while (Date.now() - startTime < timeoutMs) {
+    const receipt = await getReceiptDirect(txHash);
+    if (receipt) return receipt;
+    await new Promise(r => setTimeout(r, 1500));
+  }
+  throw new Error('Transaction receipt timeout');
+}
+
+const truncateAddress = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+
+/* -------------------------------------------------------------------------- */
+/* ARBITER CONFIRMATION MODAL                                                */
+/* -------------------------------------------------------------------------- */
+function ArbiterConfirmModal({ isOpen, onClose, onConfirm, actionData }: any) {
+  const [confirmText, setConfirmText] = useState('');
+  
+  useEffect(() => { if (!isOpen) setConfirmText(''); }, [isOpen]);
+  if (!isOpen || !actionData) return null;
 
   return (
-    <>
-      {/* Hamburger Button */}
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2.5 rounded-lg bg-white/50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-700/50 hover:border-slate-300 dark:hover:border-slate-600/50 transition-all duration-200"
-      >
-        <Menu className="w-5 h-5 text-slate-700 dark:text-slate-300" />
-        {pendingCount > 0 && (
-          <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white dark:border-slate-950 animate-pulse" />
-        )}
-      </button>
-
-      {/* Overlay */}
-      {isOpen && (
-        <div
-          className="fixed inset-0 bg-slate-900/20 dark:bg-black/60 backdrop-blur-sm z-50 transition-opacity duration-300"
-          onClick={() => setIsOpen(false)}
-        />
-      )}
-
-      {/* Slide-out Menu */}
-      <div className={`fixed top-0 right-0 h-full w-96 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-l border-slate-200 dark:border-slate-800/50 z-50 transform transition-transform duration-300 ease-out shadow-2xl ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}>
-
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-800/50">
-          <div>
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white">Menu</h3>
-            <p className="text-xs text-slate-500 mt-1">Quick actions & settings</p>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in">
+      <div className="relative w-full max-w-sm overflow-hidden bg-white border border-slate-200 rounded-xl shadow-xl">
+        <div className="p-6 space-y-5">
+          <div className="flex flex-col items-center text-center space-y-3">
+            <div className="w-12 h-12 rounded-full bg-rose-50 flex items-center justify-center border border-rose-100">
+              <AlertTriangle className="w-6 h-6 text-rose-500" />
+            </div>
+            <h2 className="text-lg font-bold text-slate-900 tracking-tight">Confirm Verdict</h2>
           </div>
-          <button
-            onClick={() => setIsOpen(false)}
-            className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800/50 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700/50 hover:border-slate-300 dark:hover:border-slate-600 transition-all duration-200 group"
-            aria-label="Close menu"
-          >
-            <X className="w-5 h-5 text-slate-500 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white transition-colors" />
-          </button>
-        </div>
-
-        {/* Menu Items - Scrollable area */}
-        <div className="h-[calc(100vh-180px)] overflow-y-auto p-4 space-y-2">
-
-          {/* Offers Preview - Only show if there are pending offers */}
-          {pendingCount > 0 && (
-            <div className="mb-4 p-4 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/30 rounded-xl">
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                  <Bell className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
-                  Action Required
-                </h4>
-                <span className="text-xs text-indigo-500 dark:text-indigo-400">{pendingCount} actions</span>
-              </div>
-
-              <div className="space-y-3 max-h-[400px] overflow-y-auto custom-scrollbar pr-1">
-                {pendingPayments.map((payment) => {
-                  const isActionLoading = actionLoading === payment.id;
-                  const isTimelocked = payment.pType === 1; // TIMELOCKED
-                  const isAccepted = payment.status === 1;  // ACCEPTED
-                  const isPending = payment.status === 0;
-
-                  // Claim Logic: Timelocked + Accepted + Deadline Passed
-                  // Note: payment.deadline is BigInt-ish string or BigInt from contract
-                  // We cast to Number safely. Contract timestamp is seconds. JS Date.now() is ms.
-                  const deadlinePassed = (Date.now() / 1000) > Number(payment.deadline);
-                  const canClaim = isTimelocked && isAccepted && deadlinePassed;
-                  const isLocked = isTimelocked && isAccepted && !deadlinePassed;
-
-                  return (
-                    <div key={payment.id} className="p-3 bg-white dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700/50 hover:border-indigo-500/30 transition-colors">
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs text-slate-500">From</p>
-                          <p className="text-xs font-mono text-slate-700 dark:text-slate-300 truncate">
-                            {payment.sender.slice(0, 6)}...{payment.sender.slice(-4)}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-xs font-bold text-slate-900 dark:text-white">
-                            {(Number(payment.amount) / 1e6).toFixed(2)}
-                          </p>
-                          <p className="text-xs text-slate-500">USDC</p>
-                        </div>
-                      </div>
-
-                      {/* Action Buttons */}
-                      <div className="flex gap-2 mt-3 pt-2 border-t border-slate-200 dark:border-slate-700/50">
-                        {canClaim ? (
-                          <button
-                            onClick={() => onClaim(payment)}
-                            disabled={isActionLoading}
-                            className="flex-1 py-1.5 bg-indigo-500 hover:bg-indigo-600 disabled:bg-indigo-500/50 text-white text-xs font-semibold rounded-md transition-colors flex items-center justify-center gap-1"
-                          >
-                            {isActionLoading ? (
-                              <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                            ) : (
-                              <><Zap className="w-3 h-3" /> Claim Funds</>
-                            )}
-                          </button>
-                        ) : isLocked ? (
-                          <button
-                            disabled
-                            className="flex-1 py-1.5 bg-slate-100 dark:bg-slate-700/50 text-slate-400 text-xs font-semibold rounded-md cursor-not-allowed flex items-center justify-center gap-1"
-                          >
-                            <Lock className="w-3 h-3" /> Locked until {new Date(Number(payment.deadline) * 1000).toLocaleDateString()}
-                          </button>
-                        ) : (
-                          <>
-                            <button
-                              onClick={() => onAccept(payment)}
-                              disabled={isActionLoading}
-                              className="flex-1 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-500/50 text-white text-xs font-semibold rounded-md transition-colors flex items-center justify-center gap-1"
-                            >
-                              {isActionLoading ? (
-                                <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                              ) : (
-                                <><Check className="w-3 h-3" /> Accept</>
-                              )}
-                            </button>
-                            <button
-                              onClick={() => onDecline(payment)}
-                              disabled={isActionLoading}
-                              className="flex-1 py-1.5 bg-red-500/10 hover:bg-red-500/20 disabled:bg-red-500/5 border border-red-500/30 text-red-500 dark:text-red-400 text-xs font-semibold rounded-md transition-colors flex items-center justify-center gap-1"
-                            >
-                              {isActionLoading ? (
-                                <div className="w-3 h-3 border-2 border-red-400/30 border-t-red-400 rounded-full animate-spin" />
-                              ) : (
-                                <><XCircle className="w-3 h-3" /> Decline</>
-                              )}
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
+          <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-2">
+            <p className="text-slate-600 text-xs leading-relaxed text-center font-medium">
+              You are about to irreversibly disburse funds to the <strong className="text-slate-900">{actionData.label}</strong>.
+            </p>
+            <div className="bg-white p-2 rounded text-[10px] text-center font-mono text-slate-500 break-all border border-slate-200 shadow-sm">
+              {actionData.winner}
             </div>
-          )}
-
-          {menuItems.map((item, index) => (
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider text-center block">
+              Type <span className="text-slate-900">CONFIRM</span> to execute
+            </label>
+            <input
+              type="text" placeholder="CONFIRM" value={confirmText} onChange={(e) => setConfirmText(e.target.value)}
+              className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2.5 text-slate-900 placeholder:text-slate-400 font-mono text-sm text-center uppercase focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20 transition-all shadow-sm"
+            />
+          </div>
+          <div className="flex gap-2 pt-2">
+            <button onClick={onClose} className="flex-1 py-2.5 rounded-lg font-bold text-xs uppercase tracking-wide text-slate-600 bg-white hover:bg-slate-50 transition-colors border border-slate-300 shadow-sm">Cancel</button>
             <button
-              key={index}
-              onClick={item.onClick}
-              className="w-full flex items-center gap-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/30 hover:bg-slate-100 dark:hover:bg-slate-800/60 border border-slate-200 dark:border-slate-700/30 hover:border-slate-300 dark:hover:border-slate-600/50 transition-all duration-200 group"
+              onClick={() => { if (confirmText === 'CONFIRM') onConfirm(actionData.id, actionData.winner); }}
+              disabled={confirmText !== 'CONFIRM'}
+              className={`flex-1 py-2.5 rounded-lg font-bold text-xs uppercase tracking-wide transition-all border ${confirmText === 'CONFIRM' ? 'bg-indigo-600 text-white border-indigo-700 hover:bg-indigo-700 shadow-sm active:scale-95' : 'bg-slate-100 text-slate-400 cursor-not-allowed border-slate-200'}`}
             >
-              <div className="p-2.5 rounded-lg bg-white dark:bg-slate-700/50 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-500/20 transition-colors shadow-sm dark:shadow-none">
-                <item.icon className="w-5 h-5 text-slate-500 dark:text-slate-400 group-hover:text-indigo-500 dark:group-hover:text-indigo-400 transition-colors" />
-              </div>
-              <div className="flex-1 text-left">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold text-slate-900 dark:text-white">{item.label}</span>
-                </div>
-                <p className="text-xs text-slate-500 mt-0.5">{item.description}</p>
-              </div>
+              Execute
             </button>
-          ))}
-        </div>
-
-        {/* Footer */}
-        <div className="absolute bottom-0 left-0 right-0 p-6 border-t border-slate-800/50 bg-slate-900/95">
-          <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-800/30">
-            <div className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0" />
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-slate-300">System Status</p>
-              <p className="text-xs text-slate-500 mt-0.5">All services operational</p>
-            </div>
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 }
 
-export default function Home() {
-  const { address, isConnected } = useAccount();
-  const { showToast } = useToast();
-  const [mounted, setMounted] = useState(false);
-  const [pendingPayments, setPendingPayments] = useState<Payment[]>([]);
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
+/* -------------------------------------------------------------------------- */
+/* HEADER COMPONENT                                                          */
+/* -------------------------------------------------------------------------- */
 
-  const CONTRACT_ADDRESS = '0x2fc47F49E13f167746E9c7DC245E003f0ECb9544';
-  const ABI = [
-    "function getPaymentsForReceiver(address receiver) view returns (uint256[])",
-    "function getPayment(uint256 paymentId) view returns (tuple(address sender,address receiver,address arbiter,address token,uint256 amount,uint256 bondAmount,uint256 deadline,uint256 challengePeriod,bytes32 termsHash,uint8 pType,uint8 status))",
-    "function claimTimelockedPayment(uint256 paymentId) external",
-    "function acceptTimelockedPayment(uint256 paymentId) external",
-    "function declineTimelockedPayment(uint256 paymentId) external",
-    "function acceptBondedPayment(uint256 paymentId) external",
-    "function releasePayment(uint256 paymentId) external",
-    "function disputePayment(uint256 paymentId) external",
-    "function resolveDispute(uint256 paymentId, address winner) external",
-    "function approve(address spender, uint256 amount) external returns (bool)"
-  ];
+const Header = ({ address, hasWallet, notifications = [], inbox = [], usdcBalance }: any) => {
+  const [isBellOpen, setIsBellOpen] = useState(false);
+  const [isInboxOpen, setIsInboxOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  
+  const [readMessages, setReadMessages] = useState<Set<string>>(new Set());
+  const [expandedMsg, setExpandedMsg] = useState<string | null>(null);
 
-  // Prevent hydration mismatch
+  const [now, setNow] = useState(Math.floor(Date.now() / 1000));
   useEffect(() => {
-    setMounted(true);
+    const interval = setInterval(() => setNow(Math.floor(Date.now() / 1000)), 1000);
+    return () => clearInterval(interval);
   }, []);
 
-  // Fetch pending payments for the connected receiver
-  const fetchPendingPayments = useCallback(async () => {
-    if (!address || !isConnected || typeof window === 'undefined' || !window.ethereum) return;
-
-    try {
-      console.log('Fetching payments for address:', address);
-
-      // @ts-ignore - ethers will be available at runtime
-      const { ethers } = await import('ethers');
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, provider);
-
-      const paymentIds = await contract.getPaymentsForReceiver(address);
-      console.log('Payment IDs:', paymentIds);
-
-      const paymentsData: Payment[] = await Promise.all(
-        paymentIds.map(async (id: bigint) => {
-          const p = await contract.getPayment(id);
-          console.log('Payment data for ID', id.toString(), ':', p);
-          return {
-            id: id.toString(),
-            sender: p[0],
-            receiver: p[1],
-            arbiter: p[2],
-            token: p[3],
-            amount: p[4],
-            bondAmount: p[5],
-            deadline: p[6],
-            challengePeriod: p[7],
-            termsHash: p[8],
-            pType: Number(p[9]),
-            status: Number(p[10])
-          };
-        })
-      );
-
-      console.log('All payments data:', paymentsData);
-
-      // Filter Pending (0) OR Accepted (1) Timelocked payments (waiting for claim)
-      const pending = paymentsData.filter(p =>
-        p.status === 0 ||
-        (p.status === 1 && p.pType === PAYMENT_TYPES.TIMELOCKED)
-      );
-      console.log('Pending/Claimable payments:', pending);
-      setPendingPayments(pending);
-    } catch (err) {
-      console.error("Error fetching payments:", err);
-    }
-  }, [address, isConnected]);
-
-  // Claim funds for Timelocked payment
-  async function claimPayment(payment: Payment) {
-    if (!address || typeof window === 'undefined' || !window.ethereum) return;
-    setActionLoading(payment.id);
-
-    try {
-      // @ts-ignore
-      const { ethers } = await import('ethers');
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
-      const contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
-
-      const tx = await contract.claimTimelockedPayment(payment.id);
-      await tx.wait();
-
-      showToast('success', 'Funds claimed successfully!');
-      fetchPendingPayments();
-    } catch (err: any) {
-      console.error(err);
-      showToast('error', `Failed to claim: ${err.reason || err.message}`);
-    } finally {
-      setActionLoading(null);
-    }
-  }
-
-  // Accept payment based on payment type
-  async function acceptPayment(payment: Payment) {
-    if (!address || typeof window === 'undefined' || !window.ethereum) return;
-
-    setActionLoading(payment.id);
-
-    try {
-      // @ts-ignore
-      const { ethers } = await import('ethers');
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
-      const contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
-
-      let tx;
-
-      // Use correct function based on payment type
-      if (payment.pType === PAYMENT_TYPES.TIMELOCKED) {
-        // Just accept to show intent. Funds claimed later via claimTimelockedPayment
-        tx = await contract.acceptTimelockedPayment(payment.id);
-      } else if (payment.pType === PAYMENT_TYPES.BONDED) {
-        // Must approve bond amount first
-        const tokenContract = new ethers.Contract(payment.token, [
-          "function approve(address spender, uint256 amount) external returns (bool)"
-        ], signer);
-
-        showToast('info', 'Please approve bond transfer...');
-        const approveTx = await tokenContract.approve(CONTRACT_ADDRESS, payment.bondAmount);
-        await approveTx.wait();
-
-        showToast('info', 'Accepting payment...');
-        tx = await contract.acceptBondedPayment(payment.id);
-
-      } else if (payment.pType === PAYMENT_TYPES.MEDIATED) {
-        // Mediated payments do not have an on-chain "accept" function for Receiver.
-        // Receiver just starts working. Dispute if needed.
-        showToast('info', 'Mediated payment does not require on-chain acceptance. You can start working.');
-        setActionLoading(null);
-        return;
-      } else {
-        throw new Error('Unknown payment type');
-      }
-
-      await tx.wait();
-      showToast('success', 'Payment accepted! Funds released to your wallet.');
-      fetchPendingPayments();
-    } catch (err: any) {
-      console.error(err);
-      showToast('error', `Failed to accept payment: ${err.reason || err.message || 'Please try again.'}`);
-    } finally {
-      setActionLoading(null);
-    }
-  }
-
-  // Decline payment based on payment type
-  async function declinePayment(payment: Payment) {
-    if (!address || typeof window === 'undefined' || !window.ethereum) return;
-
-    setActionLoading(payment.id);
-
-    try {
-      // @ts-ignore
-      const { ethers } = await import('ethers');
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
-      const contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
-
-      let tx;
-
-      // Use correct function based on payment type
-      if (payment.pType === PAYMENT_TYPES.TIMELOCKED) {
-        tx = await contract.declineTimelockedPayment(payment.id);
-      } else if (payment.pType === PAYMENT_TYPES.MEDIATED) {
-        // For mediated, receiver can dispute
-        tx = await contract.disputePayment(payment.id);
-      } else {
-        throw new Error('Cannot decline this payment type');
-      }
-
-      await tx.wait();
-      showToast('info', 'Payment declined.');
-      fetchPendingPayments();
-    } catch (err: any) {
-      console.error(err);
-      showToast('error', `Failed to decline payment: ${err.reason || err.message || 'Please try again.'}`);
-    } finally {
-      setActionLoading(null);
-    }
-  }
-
-  // Refetch pending payments whenever the user connects - but don't cause flickering
   useEffect(() => {
-    if (isConnected && mounted) {
-      fetchPendingPayments();
-
-      // Poll every 30 seconds instead of 10 to reduce flickering
-      const interval = setInterval(() => {
-        fetchPendingPayments();
-      }, 30000);
-
-      return () => clearInterval(interval);
+    if (address) {
+      const saved = localStorage.getItem(`custodex_read_${address}`);
+      if (saved) { try { setReadMessages(new Set(JSON.parse(saved))); } catch (e) {} }
+    } else {
+      setReadMessages(new Set());
     }
-  }, [isConnected, mounted, fetchPendingPayments]);
+  }, [address]);
 
-  if (!mounted) {
-    return (
-      <main className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center animate-pulse">
-            <ShieldCheck className="w-5 h-5 text-white" />
+  const markAllAsRead = () => {
+    setReadMessages((prev) => {
+      const next = new Set(prev);
+      inbox.forEach((m: any) => next.add(String(m.id)));
+      if (address) localStorage.setItem(`custodex_read_${address}`, JSON.stringify(Array.from(next)));
+      return next;
+    });
+  };
+
+  const toggleMsgExpand = (id: string) => {
+    setExpandedMsg(expandedMsg === id ? null : id);
+    setReadMessages((prev) => {
+      const next = new Set(prev);
+      next.add(String(id));
+      if (address) localStorage.setItem(`custodex_read_${address}`, JSON.stringify(Array.from(next)));
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) { setIsBellOpen(false); setIsInboxOpen(false); }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const unreadCount = inbox.filter((m: any) => !readMessages.has(String(m.id))).length;
+
+  const formatTimeRemaining = (targetTime: number) => {
+    const remaining = targetTime - now;
+    if (remaining <= 0) return null;
+    const hrs = Math.floor(remaining / 3600);
+    const mins = Math.floor((remaining % 3600) / 60);
+    const secs = remaining % 60;
+    if (hrs > 0) return `${hrs}h ${mins}m`;
+    if (mins > 0) return `${mins}m ${secs}s`;
+    return `${secs}s`;
+  };
+
+  return (
+    <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/70 backdrop-blur-xl h-16 sm:h-20 shrink-0 w-full flex items-center shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+      <div className="w-full px-3 sm:px-6 lg:px-8 h-full flex items-center justify-between max-w-7xl mx-auto gap-2">
+        
+        {/* LOGO */}
+        <div className="flex items-center gap-2 sm:gap-2.5">
+          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-md bg-indigo-600 flex items-center justify-center flex-shrink-0 shadow-sm shadow-indigo-600/30">
+            <ShieldCheck className="w-4 h-4 text-white" strokeWidth={2.5} />
           </div>
-          <span className="text-white font-semibold">Loading...</span>
+          <span className="font-bold text-lg sm:text-xl tracking-tight text-indigo-950">Custodex</span>
         </div>
-      </main>
+
+        <div className="flex items-center gap-1.5 sm:gap-4">
+          
+          {hasWallet && (
+            <>
+              {/* HIDDEN ON MOBILE */}
+              <div className="hidden sm:flex bg-white border border-slate-200 px-3 py-1.5 rounded-lg items-center gap-2 shadow-sm">
+                <span className="text-[9px] font-bold text-indigo-500 uppercase tracking-widest">USDC</span>
+                <span className="text-xs font-mono text-slate-900 font-semibold">{usdcBalance === 'loading' ? '...' : usdcBalance}</span>
+              </div>
+
+              <div className="relative flex gap-1 sm:gap-2" ref={dropdownRef}>
+                <button onClick={() => { setIsInboxOpen(!isInboxOpen); setIsBellOpen(false); }} className={`p-1.5 sm:p-2 rounded-lg transition-all relative border ${isInboxOpen ? 'bg-indigo-100 border-indigo-200 text-indigo-700 shadow-inner' : 'bg-indigo-50 border-indigo-100 text-indigo-600 hover:bg-indigo-100 hover:text-indigo-700 shadow-sm'}`}>
+                  <Mail className="w-4 h-4 sm:w-4 sm:h-4" />
+                  {unreadCount > 0 && <span className="absolute -top-1 -right-1 w-2 h-2 sm:w-2.5 sm:h-2.5 bg-rose-500 rounded-full ring-2 ring-white" />}
+                </button>
+
+                <button onClick={() => { setIsBellOpen(!isBellOpen); setIsInboxOpen(false); }} className={`p-1.5 sm:p-2 rounded-lg transition-all relative border ${isBellOpen ? 'bg-indigo-100 border-indigo-200 text-indigo-700 shadow-inner' : 'bg-indigo-50 border-indigo-100 text-indigo-600 hover:bg-indigo-100 hover:text-indigo-700 shadow-sm'}`}>
+                  <Bell className="w-4 h-4 sm:w-4 sm:h-4" />
+                  {notifications.length > 0 && <span className="absolute -top-1 -right-1 w-2 h-2 sm:w-2.5 sm:h-2.5 bg-rose-500 rounded-full ring-2 ring-white" />}
+                </button>
+
+                {/* INBOX DROPDOWN */}
+                {isInboxOpen && (
+                  <div className="absolute right-0 mt-12 w-[calc(100vw-2rem)] max-w-[340px] rounded-xl bg-white border border-slate-200 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] overflow-hidden animate-fade-in z-50">
+                    <div className="p-3 border-b border-slate-100 bg-slate-50/80 flex justify-between items-center">
+                      <h3 className="font-bold text-slate-900 text-xs tracking-wider uppercase">Inbox</h3>
+                      <div className="flex items-center gap-3">
+                        {inbox.length > 0 && <button onClick={markAllAsRead} className="text-[9px] font-bold text-indigo-600 hover:text-indigo-700 transition-colors uppercase">Mark Read</button>}
+                        <button onClick={() => setIsInboxOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={14} /></button>
+                      </div>
+                    </div>
+                    <div className="max-h-[60vh] sm:max-h-[350px] overflow-y-auto">
+                      {inbox.length === 0 ? (
+                        <div className="p-6 text-center text-slate-500 text-xs font-medium">No messages</div>
+                      ) : (
+                        <div className="divide-y divide-slate-100">
+                          {inbox.map((msg: any) => {
+                            const isRead = readMessages.has(String(msg.id));
+                            const isExpanded = expandedMsg === msg.id;
+                            
+                            let title = ""; let desc = "";
+                            let Icon = CheckCircle;
+                            let color = 'text-slate-600';
+
+                            if (msg.status === 4) {
+                              title = `Payment Refunded`; desc = `Funds returned.`; Icon = XCircle; color = 'text-rose-500';
+                            } else if (msg.status === 3) {
+                              if (msg.resolvedTo.toLowerCase() === msg.sender.toLowerCase()) {
+                                  title = `Arbitration Completed`; desc = `Funds returned.`;
+                              } else {
+                                  title = `Arbitration Completed`; desc = `Funds released.`; color = 'text-emerald-600';
+                              }
+                            } else {
+                                title = `Terms Accepted`; desc = `Escrow in progress.`; color = 'text-indigo-600';
+                            }
+
+                            return (
+                              <div key={msg.id} onClick={() => toggleMsgExpand(msg.id)} className={`p-4 cursor-pointer transition-colors ${isRead ? 'hover:bg-slate-50 opacity-80' : 'bg-white hover:bg-slate-50'}`}>
+                                <div className="flex gap-3 items-start relative">
+                                  {!isRead && <div className="absolute -left-1.5 top-1.5 w-2 h-2 rounded-full bg-indigo-500" />}
+                                  <Icon size={16} className={`${color} shrink-0 mt-0.5`} />
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex justify-between items-center mb-1">
+                                      <p className={`text-xs font-bold truncate pr-2 ${isRead ? 'text-slate-700' : 'text-slate-900'}`}>{title}</p>
+                                      <ChevronRight size={14} className={`text-slate-400 transition-transform shrink-0 ${isExpanded ? 'rotate-90' : ''}`} />
+                                    </div>
+                                    <p className="text-[11px] text-slate-500 leading-relaxed line-clamp-2">{desc}</p>
+                                    
+                                    {isExpanded && (
+                                      <div className="mt-3 pt-3 border-t border-slate-100 space-y-2 animate-fade-in">
+                                        <div className="flex justify-between text-[11px]">
+                                          <span className="text-slate-500 font-semibold">Amount:</span>
+                                          <span className="font-mono text-slate-900 font-bold">{(Number(msg.amount) / 1e6).toFixed(2)} USDC</span>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* NOTIFICATIONS DROPDOWN */}
+                {isBellOpen && (
+                  <div className="absolute right-0 mt-12 w-[calc(100vw-2rem)] max-w-[340px] rounded-xl bg-white border border-slate-200 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] overflow-hidden animate-fade-in z-50">
+                    <div className="p-3 border-b border-slate-100 bg-slate-50/80 flex justify-between items-center">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-bold text-slate-900 text-xs tracking-wider uppercase">Actions</h3>
+                        <span className="bg-indigo-100 text-indigo-700 py-0.5 px-1.5 rounded text-[9px] font-bold">{notifications.length}</span>
+                      </div>
+                      <button onClick={() => setIsBellOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={14} /></button>
+                    </div>
+                    <div className="max-h-[60vh] sm:max-h-[350px] overflow-y-auto">
+                      {notifications.length === 0 ? (
+                        <div className="p-6 text-center text-slate-500 text-xs font-medium">No pending actions</div>
+                      ) : (
+                        <div className="divide-y divide-slate-100">
+                          {notifications.map((n: any) => {
+                            const isPending = n.status === 0;
+                            const isAccepted = n.status === 1;
+                            const isDisputed = n.status === 2;
+                            const isTimelocked = n.pType === 1;
+                            
+                            const isReceiver = address && n.receiver.toLowerCase() === address.toLowerCase();
+                            const isSender = address && n.sender.toLowerCase() === address.toLowerCase();
+                            const isArbiter = address && n.arbiter.toLowerCase() === address.toLowerCase();
+
+                            const availableAt = Number(n.availableAt);
+                            const deadline = Number(n.deadline);
+                            const isCoolingOff = isPending && now < availableAt;
+                            const isExpired = isPending && now > deadline;
+
+                            let badgeColor = 'text-indigo-600 bg-indigo-50 border-indigo-100';
+                            let badgeText = 'Payment Request';
+                            
+                            if (isPending) {
+                                if (isSender) badgeText = 'Awaiting Receiver';
+                                else if (isReceiver) badgeText = 'Action Required';
+                            } else if (isAccepted) {
+                                badgeText = 'In Progress'; badgeColor = 'text-emerald-600 bg-emerald-50 border-emerald-100';
+                            }
+                            if (isDisputed) { badgeText = isArbiter ? 'Ruling Required' : 'Under Arbitration'; badgeColor = 'text-amber-600 bg-amber-50 border-amber-100'; }
+
+                            return (
+                              <div key={n.id} className="p-4 hover:bg-slate-50 transition-colors">
+                                <div className="flex justify-between items-start mb-3">
+                                  <span className={`text-[9px] px-1.5 py-0.5 rounded border font-bold uppercase ${badgeColor}`}>{badgeText}</span>
+                                </div>
+                                
+                                <div className="mb-3 space-y-1.5">
+                                  <div className="flex justify-between items-center text-xs">
+                                    <span className="text-slate-500 font-semibold uppercase text-[10px]">Amount</span>
+                                    <span className="font-bold text-slate-900 font-mono">{(Number(n.amount) / 1e6).toFixed(2)} USDC</span>
+                                  </div>
+                                </div>
+
+                                <div className="flex gap-2 flex-wrap pt-2">
+                                  {isPending && isReceiver && isTimelocked && !isDisputed && (
+                                    <>
+                                      {isExpired ? <div className="flex-1 py-2 bg-slate-100 text-slate-500 text-[10px] font-bold rounded-lg flex items-center justify-center border border-slate-200 uppercase cursor-not-allowed">Offer Expired</div>
+                                      : isCoolingOff ? <button disabled className="flex-1 py-2 bg-slate-50 text-slate-500 text-[10px] font-bold rounded-lg flex items-center justify-center gap-1.5 border border-slate-200 uppercase cursor-not-allowed"><Snowflake size={12} /> {formatTimeRemaining(availableAt)}</button>
+                                      : <button className="flex-1 py-2 bg-indigo-600 text-white text-[10px] font-bold rounded-lg hover:bg-indigo-700 transition-all uppercase shadow-sm active:scale-95">Claim Payment</button>}
+                                    </>
+                                  )}
+                                  {isPending && isSender && !isDisputed && (
+                                    <div className="flex-1 py-2 bg-slate-50 text-slate-500 text-[10px] font-bold rounded-lg flex items-center justify-center gap-1.5 border border-slate-200 uppercase cursor-not-allowed"><Clock size={12} /> Waiting</div>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          {/* CUSTOM RAINBOWKIT BUTTON */}
+          <div className="flex items-center">
+            <ConnectButton.Custom>
+              {({ account, chain, openAccountModal, openChainModal, openConnectModal, authenticationStatus, mounted }) => {
+                const ready = mounted && authenticationStatus !== 'loading';
+                const connected = ready && account && chain && (!authenticationStatus || authenticationStatus === 'authenticated');
+                return (
+                  <div {...(!ready && { 'aria-hidden': true, style: { opacity: 0, pointerEvents: 'none', userSelect: 'none' } })}>
+                    {(() => {
+                      if (!connected) {
+                        return (
+                          <button onClick={openConnectModal} type="button" className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-1.5 px-3 sm:py-2.5 sm:px-4 rounded-lg transition-all shadow-md shadow-indigo-600/20 active:scale-95 text-[11px] sm:text-xs tracking-wide">
+                            Connect Wallet
+                          </button>
+                        );
+                      }
+                      if (chain.unsupported) {
+                        return (
+                          <button onClick={openChainModal} type="button" className="bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100 font-bold py-1.5 px-3 sm:py-2 sm:px-4 rounded-lg transition-colors text-[11px] sm:text-xs">
+                            Wrong network
+                          </button>
+                        );
+                      }
+                      return (
+                        <div className="flex items-center gap-1.5">
+                          <button onClick={openChainModal} type="button" className="hidden md:flex items-center bg-white border border-slate-200 hover:bg-slate-50 py-1.5 px-2.5 rounded-lg transition-colors shadow-sm">
+                            {chain.hasIcon && (
+                              <div style={{ background: chain.iconBackground, width: 16, height: 16, borderRadius: 999, overflow: 'hidden', marginRight: 6 }}>
+                                {chain.iconUrl && <img alt={chain.name ?? 'Chain icon'} src={chain.iconUrl} style={{ width: 16, height: 16 }} />}
+                              </div>
+                            )}
+                            <span className="text-[11px] font-bold text-slate-700">{chain.name}</span>
+                          </button>
+                          
+                          <button onClick={openAccountModal} type="button" className="bg-white border border-slate-200 hover:bg-indigo-50 py-1.5 px-2 sm:py-2 sm:px-3 rounded-lg transition-colors shadow-sm flex items-center gap-1.5 group">
+                            <Wallet className="w-3.5 h-3.5 text-indigo-600 group-hover:text-indigo-700 transition-colors" />
+                            <span className="text-[10px] sm:text-xs font-mono text-slate-900 font-semibold group-hover:text-indigo-700 transition-colors">{account.displayName}</span>
+                          </button>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                );
+              }}
+            </ConnectButton.Custom>
+          </div>
+
+        </div>
+      </div>
+    </header>
+  );
+};
+
+// FULL-WIDTH SEGMENTED CONTROL TABS
+const TabButton = ({ active, onClick, icon: Icon, label }: any) => (
+  <button onClick={onClick} className={`flex-1 flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 rounded-md text-[11px] sm:text-xs font-bold tracking-wide transition-all duration-200 ${active ? 'bg-indigo-600 text-white shadow-sm border border-indigo-700' : 'text-slate-500 hover:text-indigo-600 border border-transparent'}`}>
+    <Icon size={14} className="hidden sm:block" />{label}
+  </button>
+);
+
+/* -------------------------------------------------------------------------- */
+/* MAIN PAGE                                                                  */
+/* -------------------------------------------------------------------------- */
+
+export default function Home() {
+  const { address, status } = useAccount();
+  const { showToast } = useToast();
+  
+  const [mounted, setMounted] = useState(false);
+  const [isSettled, setIsSettled] = useState(false);
+  const hasWallet = !!address;
+
+  const [activeTab, setActiveTab] = useState('create');
+  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
+  const [feedbackType, setFeedbackType] = useState('Bug Report');
+  const [feedbackMsg, setFeedbackMsg] = useState('');
+  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
+
+  const { writeContractAsync } = useWriteContract();
+
+  const [pendingPayments, setPendingPayments] = useState<Payment[]>([]);
+  const [inboxMessages, setInboxMessages] = useState<Payment[]>([]); 
+  const [slashPayment, setSlashPayment] = useState<Payment | null>(null);
+  const [arbiterAction, setArbiterAction] = useState<{id: string, winner: string, label: string} | null>(null);
+
+  const { data: balanceData } = useReadContract({
+    address: USDC_ADDRESS as `0x${string}`,
+    abi: ERC20_ABI,
+    functionName: 'balanceOf',
+    args: address ? [address] : undefined,
+    query: { enabled: !!address, refetchInterval: 2000 }
+  });
+  const formattedBalance = balanceData ? Number(formatUnits(balanceData as bigint, 6)).toFixed(2) : '0.00';
+
+  // THE FAILSAFE HYDRATION MACHINE
+  useEffect(() => {
+    setMounted(true);
+    
+    // This timer acts as a ceiling limit. 
+    // It guarantees the loading screen will drop after exactly 800ms, 
+    // saving you from 15-second RPC/Wallet hangs forever.
+    const failsafeTimer = setTimeout(() => {
+      setIsSettled(true);
+    }, 800);
+
+    // If Wagmi answers normally before 800ms, we drop the loading screen early
+    if (status === 'connected' || status === 'disconnected') {
+      setIsSettled(true);
+      clearTimeout(failsafeTimer);
+    }
+
+    return () => clearTimeout(failsafeTimer);
+  }, [status]);
+
+  const handleFeedbackSubmit = async () => {
+    if (!feedbackMsg.trim()) return;
+    setIsSubmittingFeedback(true);
+    
+    try {
+      const response = await fetch('/api/feedback', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: feedbackType, message: feedbackMsg, address: address || null }),
+      });
+      if (!response.ok) throw new Error('Failed');
+      setIsFeedbackOpen(false); setFeedbackMsg('');
+      showToast('success', 'Feedback Submitted!');
+    } catch (error) { showToast('error', 'Submission Failed'); } 
+    finally { setIsSubmittingFeedback(false); }
+  };
+
+  /* -------------------------- DATA FETCHING -------------------------- */
+  const fetchPendingPayments = useCallback(async () => {
+    if (!hasWallet || typeof window === 'undefined' || !window.ethereum) return;
+    try {
+      // @ts-ignore
+      const { ethers } = await import('ethers');
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI as any, provider);
+
+      const actionablePayments: any[] = [];
+      const historyPayments: any[] = [];
+      const currentUser = address.toLowerCase();
+      const emptyAddress = '0x0000000000000000000000000000000000000000';
+
+      let currentId = 0; const maxChecks = 30; let rpcFailed = false;
+
+      while (currentId < maxChecks) {
+        try {
+          const p = await contract.getPayment(BigInt(currentId));
+          const sender = p[0].toLowerCase();
+          const receiver = p[1].toLowerCase();
+          const arbiter = p[2].toLowerCase(); 
+
+          if (sender !== emptyAddress && (sender === currentUser || receiver === currentUser || arbiter === currentUser)) {
+            const payment = {
+              id: currentId.toString(), sender: p[0], receiver: p[1], arbiter: p[2], token: p[3],
+              amount: p[4].toString(), bondAmount: p[5].toString(), deadline: p[6].toString(), availableAt: p[7].toString(), acceptedAt: p[8].toString(), termsHash: p[9], 
+              pType: Number(p[10]), status: Number(p[11]), resolvedTo: p[13] 
+            };
+            if (payment.status === 0 || payment.status === 1 || payment.status === 2) { actionablePayments.push(payment); } 
+            else if (payment.status === 3 || payment.status === 4) { historyPayments.push(payment); }
+          }
+          currentId++;
+        } catch (err: any) { if (err.code !== 'CALL_EXCEPTION' && !err.message?.includes('revert')) { rpcFailed = true; } break; }
+      }
+
+      if (rpcFailed) return; 
+
+      const sortedActionable = actionablePayments.sort((a, b) => Number(b.id) - Number(a.id));
+      const sortedHistory = historyPayments.sort((a, b) => Number(b.id) - Number(a.id));
+
+      setPendingPayments((prev) => JSON.stringify(prev) === JSON.stringify(sortedActionable) ? prev : sortedActionable);
+      setInboxMessages((prev) => JSON.stringify(prev) === JSON.stringify(sortedHistory) ? prev : sortedHistory);
+    } catch (e) {}
+  }, [address, hasWallet]);
+
+  useEffect(() => {
+    if (hasWallet) { fetchPendingPayments(); const interval = setInterval(() => fetchPendingPayments(), 5000); return () => clearInterval(interval); }
+  }, [hasWallet, fetchPendingPayments]);
+
+  const handleResolveDispute = async (id: string, winnerAddress: string) => { /* logic */ };
+
+  // THE LOADER: Will never run for more than 800ms
+  if (!mounted || !isSettled) {
+    return (
+      <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-[#F8F9FA] relative z-50">
+        <div className="w-14 h-14 rounded-xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-600/30 mb-6 animate-pulse">
+          <ShieldCheck className="w-8 h-8 text-white" strokeWidth={2.5} />
+        </div>
+        <div className="flex items-center gap-3 text-indigo-900 font-bold text-xs tracking-widest uppercase">
+          <Loader2 className="w-4 h-4 animate-spin text-indigo-600" />
+          Initializing Protocol
+        </div>
+      </div>
     );
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-200 relative overflow-hidden transition-colors duration-500">
-
-      {/* Background Glow */}
-      <div className="fixed inset-0 -z-10 overflow-hidden">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-indigo-500/10 dark:bg-indigo-500/20 rounded-full blur-3xl opacity-50 dark:opacity-100 transition-opacity" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-cyan-500/10 dark:bg-cyan-500/10 rounded-full blur-3xl opacity-50 dark:opacity-100 transition-opacity" />
+    <div className="min-h-[100dvh] flex flex-col bg-[#F8F9FA] font-sans text-slate-900 overflow-x-hidden relative selection:bg-indigo-100 selection:text-indigo-900">
+      
+      {/* ARCHITECTURAL GRID */}
+      <div className="fixed inset-0 pointer-events-none z-0 flex justify-center overflow-hidden">
+        <div className="absolute inset-0 opacity-[0.5]" style={{ backgroundImage: 'linear-gradient(to right, rgba(79, 70, 229, 0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(79, 70, 229, 0.05) 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
+        <div className="absolute top-[-10%] left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-indigo-500/10 rounded-full blur-[120px]" />
       </div>
 
-      {/* Shield Watermark */}
-      <div className="shield-watermark opacity-5 dark:opacity-100 transition-opacity">
-        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
-          <path d="M12 2L3 7V12C3 17.55 6.84 22.74 12 24C17.16 22.74 21 17.55 21 12V7L12 2Z" fill="#6366f1" />
-          <path d="M10 17L6 13L7.41 11.59L10 14.17L16.59 7.58L18 9L10 17Z" fill="#0f172a" />
-        </svg>
+      {/* BRANDED FEEDBACK TAB */}
+      <div className="hidden lg:flex fixed right-0 top-1/2 -translate-y-1/2 z-[60]">
+        <button onClick={() => setIsFeedbackOpen(true)} className="bg-indigo-600 text-white hover:bg-indigo-700 py-4 px-2 rounded-l-lg shadow-md shadow-indigo-600/20 border border-r-0 border-indigo-700 transition-colors flex flex-col items-center gap-2">
+          <MessageSquareQuote size={14} className="text-indigo-50" />
+          <span className="[writing-mode:vertical-lr] font-bold tracking-widest text-[9px] rotate-180 uppercase mt-0.5 text-white">Feedback</span>
+        </button>
       </div>
 
-      {/* Navbar */}
-      <nav className="sticky top-0 z-50 backdrop-blur-xl bg-white/70 dark:bg-slate-950/80 border-b border-slate-200 dark:border-slate-800/50 transition-colors">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-xl flex items-center justify-center shadow-lg text-white">
-              <ShieldCheck className="w-5 h-5" />
+      {/* FEEDBACK MODAL */}
+      {isFeedbackOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/20 backdrop-blur-sm animate-fade-in">
+          <div className="relative w-full max-w-sm bg-white border border-slate-200 rounded-xl shadow-2xl p-6">
+            <div className="flex justify-between items-center mb-5 pb-3 border-b border-slate-100">
+              <h2 className="text-base font-bold text-slate-900 flex items-center gap-2"><MessageSquareQuote className="text-indigo-600" size={16} /> Submit Feedback</h2>
+              <button onClick={() => setIsFeedbackOpen(false)} className="text-slate-400 hover:text-slate-900 transition-colors bg-slate-50 p-1.5 rounded-md"><X size={14} /></button>
             </div>
-            <div>
-              <div className="font-bold text-slate-900 dark:text-white text-lg">Custodex</div>
-              <div className="text-xs text-slate-500">Hold. Verify. Release.</div>
+            
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Type</label>
+                <div className="flex gap-2">
+                  {['Bug', 'Feature', 'General'].map(type => (
+                    <button key={type} onClick={() => setFeedbackType(type)} className={`flex-1 py-2 rounded-md text-xs font-bold transition-all border ${feedbackType === type ? 'bg-indigo-50 text-indigo-700 border-indigo-300 shadow-sm' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}`}>
+                      {type}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Message</label>
+                <textarea rows={4} placeholder="Describe your experience..." value={feedbackMsg} onChange={(e) => setFeedbackMsg(e.target.value)} className="w-full bg-white border border-slate-200 rounded-md p-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20 transition-all resize-none shadow-inner"/>
+              </div>
+
+              <button onClick={handleFeedbackSubmit} disabled={isSubmittingFeedback || !feedbackMsg.trim()} className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md font-bold text-xs transition-all shadow-md shadow-indigo-600/20 active:scale-95 flex justify-center items-center gap-2">
+                {isSubmittingFeedback ? <Loader2 className="animate-spin" size={14} /> : 'Send Feedback'}
+              </button>
             </div>
-          </div>
-          <div className="flex items-center gap-4">
-            {isConnected && <HamburgerMenu
-              pendingCount={pendingPayments.length}
-              pendingPayments={pendingPayments}
-              onAccept={acceptPayment}
-              onDecline={declinePayment}
-              onClaim={claimPayment}
-              actionLoading={actionLoading}
-            />}
-            <ThemeToggle />
-            <ConnectButton />
           </div>
         </div>
-      </nav>
-
-      {/* Hero Section */}
-      {!isConnected && (
-        <section className="max-w-6xl mx-auto px-6 pt-16 pb-12 relative z-10 fade-in">
-          <div className="text-center max-w-3xl mx-auto">
-            <div className="inline-flex items-center gap-2 px-4 py-2 mb-6 rounded-full border border-indigo-500/30 bg-indigo-500/10 text-indigo-600 dark:text-indigo-300 text-xs font-semibold">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500" />
-              </span>
-              TESTNET LIVE
-            </div>
-
-            <h1 className="text-5xl md:text-6xl font-bold mb-6 tracking-tight text-slate-900 dark:text-white">
-              Trustless Escrow
-              <br />
-              <span className="bg-gradient-to-r from-indigo-500 to-cyan-500 bg-clip-text text-transparent">
-                Made Simple
-              </span>
-            </h1>
-
-            <p className="text-slate-600 dark:text-slate-400 text-lg max-w-2xl mx-auto mb-8">
-              Non-custodial conditional payments secured by smart contracts.
-              Built for trust, verified by code.
-            </p>
-
-            <div className="flex flex-wrap gap-3 justify-center">
-              {[{ icon: Lock, text: 'Non-Custodial' }, { icon: Clock, text: 'Time-Locked' }, { icon: Zap, text: 'Instant Settlement' }]
-                .map((feature, i) => (
-                  <div key={i} className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-lg text-sm text-slate-700 dark:text-slate-300 shadow-sm">
-                    <feature.icon className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
-                    {feature.text}
-                  </div>
-                ))}
-            </div>
-          </div>
-        </section>
       )}
 
+      {slashPayment && <SlashWarningModal isOpen={true} onClose={() => { setSlashPayment(null); setTimeout(() => fetchPendingPayments(), 500); }} paymentId={slashPayment.id} totalPoolUsdc={((Number(slashPayment.amount) + Number(slashPayment.bondAmount)) / 1e6).toFixed(2)} />}
+      <ArbiterConfirmModal isOpen={!!arbiterAction} onClose={() => setArbiterAction(null)} onConfirm={handleResolveDispute} actionData={arbiterAction} />
+      
+      {/* PASSING hasWallet DOWN TO HEADER */}
+      <Header address={address} hasWallet={hasWallet} notifications={pendingPayments} inbox={inboxMessages} usdcBalance={formattedBalance} />
 
-
-      {/* Main Content */}
-      <section className="max-w-6xl mx-auto px-6 py-12 relative z-10 transition-colors">
-        <div className={`grid gap-8 ${isConnected ? 'lg:grid-cols-1 max-w-2xl mx-auto' : 'lg:grid-cols-5'}`}>
-
-          {/* Escrow Form */}
-          <div className={isConnected ? '' : 'lg:col-span-3'}>
-            <div className="bg-white dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200 dark:border-slate-800/50 rounded-2xl shadow-xl overflow-hidden transition-all">
-              <div className="p-6">
-                <div className="flex items-center gap-3 mb-6 pb-6 border-b border-slate-200 dark:border-slate-800">
-                  <div className="p-3 bg-indigo-500/10 rounded-xl">
-                    <ShieldCheck className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-bold text-slate-900 dark:text-white">Create Escrow Payment</h2>
-                    <p className="text-sm text-slate-500">Lock funds with custom conditions</p>
-                  </div>
-                </div>
-
-                <EscrowForm onPaymentCreated={fetchPendingPayments} />
-              </div>
-            </div>
-          </div>
-
-          {/* Sidebar - Only when NOT connected */}
-          {!isConnected && (
-            <div className="lg:col-span-2 space-y-6">
-              <div className="bg-white/80 dark:bg-slate-900/50 backdrop-blur-xl border border-slate-200 dark:border-slate-800/50 rounded-xl p-6 shadow-sm">
-                <h3 className="font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
-                  <Zap className="w-5 h-5 text-indigo-500 dark:text-indigo-400" />
-                  How It Works
-                </h3>
-                <div className="space-y-3 text-sm text-slate-600 dark:text-slate-400">
-                  {[
-                    { num: '1', text: 'Sender locks funds in smart contract' },
-                    { num: '2', text: 'Receiver completes agreed conditions' },
-                    { num: '3', text: 'Funds released automatically or by arbiter' }
-                  ].map(step => (
-                    <div key={step.num} className="flex gap-3">
-                      <div className="w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-xs font-bold flex-shrink-0">
-                        {step.num}
-                      </div>
-                      <p className="pt-0.5">{step.text}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="bg-white/80 dark:bg-slate-900/50 backdrop-blur-xl border border-slate-200 dark:border-slate-800/50 rounded-xl p-6 shadow-sm">
-                <h3 className="font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
-                  <Lock className="w-5 h-5 text-indigo-500 dark:text-indigo-400" />
-                  Security Features
-                </h3>
-                <div className="space-y-2 text-sm text-slate-600 dark:text-slate-400">
-                  {['Non-custodial architecture', 'Time-locked contracts', 'Dispute resolution', 'Immutable records'].map((feature, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <Check className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
-                      <span>{feature}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* Activity Section */}
-      <section className="max-w-6xl mx-auto px-6 pb-20 relative z-10 transition-colors">
-        <div className="flex items-center gap-4 mb-6">
-          <div className="p-3 bg-slate-100 dark:bg-slate-800/50 rounded-xl">
-            <Activity className="w-6 h-6 text-slate-500 dark:text-slate-400" />
-          </div>
-          <div>
-            <h3 className="text-xl font-bold text-slate-900 dark:text-white">Network Activity</h3>
-            <p className="text-sm text-slate-500">Recent transactions</p>
-          </div>
-        </div>
-
-        <ActivityList />
-      </section>
-
-      {/* Footer */}
-      <footer className="border-t border-slate-200 dark:border-slate-800/50 relative z-10 bg-slate-50 dark:bg-slate-950 transition-colors">
-        <div className="max-w-6xl mx-auto px-6 py-10">
-          <div className="grid md:grid-cols-3 gap-8 mb-8">
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <ShieldCheck className="w-5 h-5 text-indigo-500 dark:text-indigo-400" />
-                <span className="font-bold text-slate-900 dark:text-white">Custodex</span>
-              </div>
-              <p className="text-sm text-slate-500">
-                Trustless escrow infrastructure for the decentralized web.
+      {/* DYNAMIC MAIN WRAPPER */}
+      <main className={`flex-1 flex flex-col items-center px-4 sm:px-6 w-full mx-auto relative z-10 ${!hasWallet ? 'justify-center py-10 sm:py-16 max-w-5xl' : 'py-8 sm:py-12 max-w-4xl'}`}>
+        {!hasWallet ? (
+          
+          <div className="w-full flex flex-col items-center space-y-10 sm:space-y-14 animate-fade-in">
+            
+            {/* SPLIT COLOR HERO TEXT */}
+            <div className="text-center space-y-4 sm:space-y-5 px-2 relative z-10">
+              <h1 className="text-4xl sm:text-6xl md:text-7xl font-black tracking-tighter leading-[1.05]">
+                <span className="text-slate-900">Trustless Payments.</span><br/>
+                <span className="text-indigo-600">Settled Instantly.</span>
+              </h1>
+              <p className="text-sm sm:text-lg text-slate-600 max-w-2xl mx-auto font-medium leading-relaxed">
+                The enterprise escrow protocol. Secure any transaction with conditional logic, arbiters, and cryptographic bonds.
               </p>
             </div>
-            <div>
-              <h4 className="font-semibold text-slate-900 dark:text-white mb-3 text-sm">Resources</h4>
-              <div className="space-y-2 text-sm text-slate-500">
-                <div className="footer-link cursor-pointer w-fit">Documentation</div>
-                <div className="footer-link cursor-pointer w-fit">GitHub</div>
-                <div className="footer-link cursor-pointer w-fit">Support</div>
+
+            {/* BRANDED CARDS */}
+            <div className="flex flex-col md:flex-row items-center md:items-stretch justify-center gap-4 sm:gap-6 w-full relative z-10 pt-2">
+              <div className="group w-full md:w-auto p-5 sm:p-6 rounded-xl bg-white border border-slate-200 shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-md hover:border-indigo-200 transition-all flex-1 flex flex-col items-center text-center">
+                <div className="w-10 h-10 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 mb-3 sm:mb-4 group-hover:scale-105 transition-transform"><Lock size={20} /></div>
+                <h3 className="font-bold text-sm sm:text-base text-slate-900 mb-1.5">1. Lock Assets</h3>
+                <p className="text-xs text-slate-500 leading-relaxed font-medium">Sender deposits USDC into the non-custodial contract. Funds are secured on-chain.</p>
+              </div>
+
+              <div className="hidden md:flex items-center text-indigo-200"><ChevronsRight size={20} /></div>
+              <div className="flex md:hidden items-center text-indigo-200"><ChevronsDown size={20} /></div>
+
+              <div className="group w-full md:w-auto p-5 sm:p-6 rounded-xl bg-white border border-slate-200 shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-md hover:border-indigo-200 transition-all flex-1 flex flex-col items-center text-center">
+                <div className="w-10 h-10 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 mb-3 sm:mb-4 group-hover:scale-105 transition-transform"><Code2 size={20} /></div>
+                <h3 className="font-bold text-sm sm:text-base text-slate-900 mb-1.5">2. Define Logic</h3>
+                <p className="text-xs text-slate-500 leading-relaxed font-medium">Set precise conditions for release: expiry dates, arbiters, or performance bonds.</p>
+              </div>
+
+              <div className="hidden md:flex items-center text-indigo-200"><ChevronsRight size={20} /></div>
+              <div className="flex md:hidden items-center text-indigo-200"><ChevronsDown size={20} /></div>
+
+              <div className="group w-full md:w-auto p-5 sm:p-6 rounded-xl bg-white border border-slate-200 shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-md hover:border-indigo-200 transition-all flex-1 flex flex-col items-center text-center">
+                <div className="w-10 h-10 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 mb-3 sm:mb-4 group-hover:scale-105 transition-transform"><CheckCircle2 size={20} /></div>
+                <h3 className="font-bold text-sm sm:text-base text-slate-900 mb-1.5">3. Execute</h3>
+                <p className="text-xs text-slate-500 leading-relaxed font-medium">When conditions are met, the contract autonomously releases funds. Zero trust required.</p>
               </div>
             </div>
-            <div>
-              <h4 className="font-semibold text-slate-900 dark:text-white mb-3 text-sm">Network</h4>
-              <div className="space-y-2 text-sm">
-                <a href="https://testnet.arcscan.app" target="_blank" rel="noreferrer"
-                  className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 transition-colors flex items-center gap-1 w-fit">
-                  Arc Testnet
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                  </svg>
-                </a>
-                <a href="https://testnet.arcscan.app/address/0x2fc47F49E13f167746E9c7DC245E003f0ECb9544" target="_blank" rel="noreferrer"
-                  className="font-mono text-xs text-slate-500 hover:text-slate-300 transition-colors block">
-                  0x2fc4...9544
-                </a>
-              </div>
+
+            <div className="pt-2 pb-6 flex flex-col items-center w-full relative z-10">
+              <ConnectButton.Custom>
+                {({ openConnectModal }) => (
+                  <button onClick={openConnectModal} className="px-8 py-3.5 bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg font-bold text-sm tracking-wide shadow-md shadow-indigo-600/20 active:scale-[0.98] transition-transform flex items-center gap-2">
+                    Launch Platform <ChevronRight size={16} />
+                  </button>
+                )}
+              </ConnectButton.Custom>
+            </div>
+
+          </div>
+        ) : (
+          /* DASHBOARD (CONNECTED) */
+          <div className="animate-fade-in w-full flex flex-col items-center gap-6">
+            
+            {/* FULL WIDTH SEGMENTED CONTROL */}
+            <div className="flex justify-center p-1.5 bg-white border border-slate-200 rounded-lg shadow-sm w-full max-w-md">
+              <TabButton active={activeTab === 'create'} onClick={() => setActiveTab('create')} icon={PlusCircle} label="New Escrow" />
+              <TabButton active={activeTab === 'activity'} onClick={() => setActiveTab('activity')} icon={ActivityIcon} label="Activity" />
+            </div>
+            
+            <div className="w-full flex justify-center min-h-[400px]">
+              {activeTab === 'create' ? (
+                /* PRECISION FORM CONTAINER */
+                <div className="w-full max-w-md bg-white border border-slate-200 rounded-xl p-4 sm:p-6 shadow-[0_4px_20px_rgba(0,0,0,0.05)]">
+                  <EscrowForm onPaymentCreated={() => { setActiveTab('activity'); setTimeout(() => fetchPendingPayments(), 500); }} />
+                </div>
+              ) : (
+                <div className="w-full max-w-2xl">
+                  <ActivityList className="w-full" />
+                </div>
+              )}
             </div>
           </div>
-          <div className="pt-6 border-t border-slate-800/50 text-center text-xs text-slate-600">
-            © 2026 Custodex. All rights reserved.
-          </div>
+        )}
+      </main>
+
+      {/* MOBILE-OPTIMIZED COMPACT FOOTER */}
+      <footer className="w-full py-5 px-3 border-t border-slate-200/50 bg-transparent flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-6 text-[8px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-widest z-20">
+        <span className="cursor-default shrink-0">© 2026 Custodex</span>
+        <div className="flex flex-wrap justify-center items-center gap-1.5 sm:gap-4">
+          <a href="https://faucet.circle.com/" target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:text-indigo-800 transition-colors underline decoration-indigo-200 hover:decoration-indigo-400 underline-offset-2 sm:underline-offset-4">USDC Faucet</a>
+          <span className="text-slate-300">•</span>
+          <a href="https://testnet.arcscan.app/" target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:text-indigo-800 transition-colors underline decoration-indigo-200 hover:decoration-indigo-400 underline-offset-2 sm:underline-offset-4">Arc Explorer</a>
+          {/* MOBILE FEEDBACK LINK */}
+          <span className="text-slate-300 lg:hidden">•</span>
+          <button onClick={() => setIsFeedbackOpen(true)} className="lg:hidden text-indigo-600 hover:text-indigo-800 transition-colors underline decoration-indigo-200 hover:decoration-indigo-400 underline-offset-2 sm:underline-offset-4 uppercase">Feedback</button>
         </div>
       </footer>
-    </main>
+
+    </div>
   );
 }

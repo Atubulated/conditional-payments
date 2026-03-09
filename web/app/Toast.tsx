@@ -31,9 +31,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
   const showToast = useCallback((type: ToastType, message: string, link?: string, linkText?: string) => {
-    const id = Date.now();
+    const id = Date.now() + Math.random();
     setToasts((prev) => [...prev, { id, type, message, link, linkText }]);
-    
+
     // Auto remove after 10 seconds
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
@@ -47,7 +47,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={{ showToast }}>
       {children}
-      
+
       {/* Toast Container */}
       <div className="fixed bottom-6 right-6 z-[9999] flex flex-col gap-3 pointer-events-none">
         {toasts.map((toast) => (
@@ -59,13 +59,13 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               min-w-[280px] max-w-[380px]
               transform transition-all duration-300 ease-out
               animate-[slideIn_0.3s_ease-out]
-              ${toast.type === 'success' ? 'bg-slate-800/90 border border-cyan-500/30 text-cyan-100' : ''}
-              ${toast.type === 'error' ? 'bg-slate-800/90 border border-red-500/30 text-red-200' : ''}
-              ${toast.type === 'info' ? 'bg-slate-800/90 border border-indigo-500/30 text-indigo-200' : ''}
+              ${toast.type === 'success' ? 'bg-card border border-success/30 text-success' : ''}
+              ${toast.type === 'error' ? 'bg-card border border-error/30 text-error' : ''}
+              ${toast.type === 'info' ? 'bg-card border border-info/30 text-info' : ''}
             `}
             style={{
-              boxShadow: toast.type === 'success' 
-                ? '0 0 20px rgba(34, 211, 238, 0.15)' 
+              boxShadow: toast.type === 'success'
+                ? '0 0 20px rgba(34, 211, 238, 0.15)'
                 : toast.type === 'error'
                   ? '0 0 20px rgba(239, 68, 68, 0.15)'
                   : '0 0 20px rgba(99, 102, 241, 0.15)'
@@ -73,15 +73,15 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           >
             {/* Icon */}
             <div className="mt-0.5">
-              {toast.type === 'success' && <CheckCircle2 className="w-5 h-5 text-cyan-400" />}
-              {toast.type === 'error' && <XCircle className="w-5 h-5 text-red-400" />}
-              {toast.type === 'info' && <AlertCircle className="w-5 h-5 text-indigo-400" />}
+              {toast.type === 'success' && <CheckCircle2 className="w-5 h-5 text-success" />}
+              {toast.type === 'error' && <XCircle className="w-5 h-5 text-error" />}
+              {toast.type === 'info' && <AlertCircle className="w-5 h-5 text-info" />}
             </div>
-            
+
             {/* Content */}
             <div className="flex-1 min-w-0">
               <span className="text-sm font-medium">{toast.message}</span>
-              
+
               {/* Optional Link */}
               {toast.link && (
                 <a
@@ -90,9 +90,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                   rel="noreferrer"
                   className={`
                     mt-1.5 flex items-center gap-1 text-xs font-medium
-                    ${toast.type === 'success' ? 'text-cyan-400 hover:text-cyan-300' : ''}
-                    ${toast.type === 'error' ? 'text-red-400 hover:text-red-300' : ''}
-                    ${toast.type === 'info' ? 'text-indigo-400 hover:text-indigo-300' : ''}
+                    ${toast.type === 'success' ? 'text-success hover:text-success/80' : ''}
+                    ${toast.type === 'error' ? 'text-error hover:text-error/80' : ''}
+                    ${toast.type === 'info' ? 'text-info hover:text-info/80' : ''}
                     transition-colors
                   `}
                 >
@@ -100,18 +100,18 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                 </a>
               )}
             </div>
-            
+
             {/* Close Button */}
             <button
               onClick={() => removeToast(toast.id)}
-              className="p-1 hover:bg-white/10 rounded-lg transition-colors text-slate-400 hover:text-white"
+              className="p-1 hover:bg-tertiary rounded-lg transition-colors text-text-muted hover:text-text-primary"
             >
               <X className="w-4 h-4" />
             </button>
           </div>
         ))}
       </div>
-      
+
       {/* Keyframe animation */}
       <style jsx global>{`
         @keyframes slideIn {

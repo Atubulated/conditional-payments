@@ -1,260 +1,305 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { ExternalLink, ArrowRight, RefreshCw, Loader2 } from 'lucide-react';
-import { CONTRACT_ADDRESS } from './constants';
+import { useAccount, useReadContract, useWriteContract } from 'wagmi';
+import { formatUnits } from 'viem';
+// FIXED: Added Loader2 and Snowflake to the import list
+import { Shield, Clock, ExternalLink, AlertTriangle, CheckCircle, XCircle, ArrowRight, Banknote, Loader2, Snowflake } from 'lucide-react';
+import { CONTRACT_ADDRESS, CONTRACT_ABI, USDC_ADDRESS, ERC20_ABI } from './constants';
+import { useToast } from './Toast';
 
 const ARC_RPC = 'https://rpc.testnet.arc.network';
-const EXPLORER_URL = 'https://testnet.arcscan.app';
 
-// PaymentCreated event signature
-const PAYMENT_CREATED_TOPIC = '0xdcabe3ed6ee811f6d8ab872973fbf5cec130e8c2bfb5ea17e76faaa274ef3f58';
-
-interface Activity {
-  id: number;
-  type: string;
-  sender: string;
-  receiver: string;
-  txHash: string;
-  blockNumber: number;
-  timestamp: string;
-}
-
-const PAYMENT_TYPES = ['Simple', 'Timelocked', 'Mediated', 'Bonded'];
-
-function shortenAddress(addr: string): string {
-  if (!addr || addr.length < 10) return addr;
-  return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
-}
-
-function formatTimeAgo(timestamp: number): string {
-  const now = Math.floor(Date.now() / 1000);
-  const secondsAgo = now - timestamp;
-
-  if (secondsAgo < 60) return `${secondsAgo}s ago`;
-  if (secondsAgo < 3600) return `${Math.floor(secondsAgo / 60)}m ago`;
-  if (secondsAgo < 86400) return `${Math.floor(secondsAgo / 3600)}h ago`;
-  return `${Math.floor(secondsAgo / 86400)}d ago`;
-}
-
-async function getBlockTimestamp(blockNumber: string): Promise<number> {
+async function getReceiptDirect(txHash: string): Promise<{ status: 'success' | 'failed' } | null> {
   try {
-    const res = await fetch(ARC_RPC, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        id: 1,
-        method: 'eth_getBlockByNumber',
-        params: [blockNumber, false],
-      }),
+    const response = await fetch(ARC_RPC, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_getTransactionReceipt', params: [txHash] }),
     });
-    const data = await res.json();
-    if (data.result && data.result.timestamp) {
-      return parseInt(data.result.timestamp, 16);
-    }
-    return 0;
-  } catch {
-    return 0;
-  }
-}
-
-async function fetchEvents(): Promise<Activity[] | null> {
-  try {
-    const blockRes = await fetch(ARC_RPC, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        id: 1,
-        method: 'eth_blockNumber',
-        params: [],
-      }),
-    });
-
-    if (!blockRes.ok) return null;
-
-    const blockData = await blockRes.json();
-    if (!blockData.result) return null;
-
-    const latestBlock = parseInt(blockData.result, 16);
-    const fromBlock = Math.max(0, latestBlock - 10000);
-
-    const logsRes = await fetch(ARC_RPC, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        id: 2,
-        method: 'eth_getLogs',
-        params: [{
-          address: CONTRACT_ADDRESS,
-          topics: [PAYMENT_CREATED_TOPIC],
-          fromBlock: `0x${fromBlock.toString(16)}`,
-          toBlock: 'latest',
-        }],
-      }),
-    });
-
-    if (!logsRes.ok) return null;
-
-    const logsData = await logsRes.json();
-
-    if (!logsData.result || !Array.isArray(logsData.result)) {
-      return [];
-    }
-
-    const activities: Activity[] = await Promise.all(
-      logsData.result.map(async (log: any) => {
-        const paymentId = parseInt(log.topics[1], 16);
-
-        const data = log.data.slice(2);
-        const pType = parseInt(data.slice(0, 64), 16);
-        const sender = '0x' + data.slice(64 + 24, 128);
-        const receiver = '0x' + data.slice(128 + 24, 192);
-
-        const blockTimestamp = await getBlockTimestamp(log.blockNumber);
-
-        return {
-          id: paymentId,
-          type: PAYMENT_TYPES[pType] || 'Unknown',
-          sender: sender.toLowerCase(),
-          receiver: receiver.toLowerCase(),
-          txHash: log.transactionHash,
-          blockNumber: parseInt(log.blockNumber, 16),
-          timestamp: blockTimestamp > 0 ? formatTimeAgo(blockTimestamp) : 'recently',
-        };
-      })
-    );
-
-    return activities.sort((a, b) => b.blockNumber - a.blockNumber);
-
-  } catch (err) {
-    console.error('Failed to fetch events:', err);
+    const data = await response.json();
+    if (data.result) return { status: data.result.status === '0x1' ? 'success' : 'failed' };
     return null;
-  }
+  } catch (err) { return null; }
 }
 
-export default function ActivityList() {
-  const [activities, setActivities] = useState<Activity[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+async function waitForReceiptWithStatus(txHash: string, timeoutMs: number = 60000): Promise<{ status: 'success' | 'failed' }> {
+  const startTime = Date.now();
+  while (Date.now() - startTime < timeoutMs) {
+    const receipt = await getReceiptDirect(txHash);
+    if (receipt) return receipt;
+    await new Promise(r => setTimeout(r, 1500));
+  }
+  throw new Error('Transaction receipt timeout');
+}
 
-  const loadActivities = useCallback(async (isRefresh = false) => {
-    if (isRefresh) {
-      setRefreshing(true);
-    } else {
-      setLoading(true);
-    }
+export default function ActivityList({ className = '' }: { className?: string }) {
+  const { address, isConnected } = useAccount();
+  const { showToast } = useToast();
+  const { writeContractAsync } = useWriteContract();
+  const [payments, setPayments] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('all');
+  
+  const [now, setNow] = useState(Math.floor(Date.now() / 1000));
 
-    const data = await fetchEvents();
-
-    if (data !== null) {
-      setActivities(data);
-    }
-
-    setLoading(false);
-    setRefreshing(false);
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Math.floor(Date.now() / 1000)), 1000);
+    return () => clearInterval(interval);
   }, []);
 
-  useEffect(() => {
-    loadActivities();
-  }, [loadActivities]);
+  const fetchPayments = useCallback(async () => {
+    if (!address || !isConnected || typeof window === 'undefined' || !window.ethereum) return;
+    try {
+      setIsLoading(true);
+      const { ethers } = await import('ethers');
+      const provider = new ethers.BrowserProvider(window.ethereum as any);
+      const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI as any, provider);
+
+      const userPayments: any[] = [];
+      const currentUser = address.toLowerCase();
+      const emptyAddress = '0x0000000000000000000000000000000000000000';
+
+      let currentId = 0;
+      const maxChecks = 50; 
+      let rpcFailed = false;
+
+      while (currentId < maxChecks) {
+        try {
+          const p = await contract.getPayment(BigInt(currentId));
+          const sender = p[0].toLowerCase();
+          const receiver = p[1].toLowerCase();
+          const arbiter = p[2].toLowerCase();
+
+          if (sender !== emptyAddress && (sender === currentUser || receiver === currentUser || arbiter === currentUser)) {
+            userPayments.push({
+              id: currentId.toString(), sender: p[0], receiver: p[1], arbiter: p[2], token: p[3],
+              amount: p[4].toString(), bondAmount: p[5].toString(), deadline: p[6].toString(), availableAt: p[7].toString(), acceptedAt: p[8].toString(), termsHash: p[9],
+              pType: Number(p[10]), status: Number(p[11]), resolvedTo: p[13]
+            });
+          }
+          currentId++;
+        } catch (err: any) {
+          if (err.code !== 'CALL_EXCEPTION' && !err.message?.includes('revert')) { rpcFailed = true; }
+          break;
+        }
+      }
+
+      if (!rpcFailed) {
+        setPayments(userPayments.sort((a, b) => Number(b.id) - Number(a.id)));
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [address, isConnected]);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      loadActivities(true);
-    }, 10000);
+    if (isConnected) {
+      fetchPayments();
+      const interval = setInterval(fetchPayments, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [isConnected, fetchPayments]);
 
-    return () => clearInterval(interval);
-  }, [loadActivities]);
+  const truncateAddress = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 
-  const handleRefresh = () => {
-    if (!refreshing) {
-      loadActivities(true);
+  const formatTimeRemaining = (targetTime: number) => {
+    const remaining = targetTime - now;
+    if (remaining <= 0) return 'Available';
+    const hrs = Math.floor(remaining / 3600);
+    const mins = Math.floor((remaining % 3600) / 60);
+    if (hrs > 0) return `${hrs}h ${mins}m`;
+    return `${mins}m ${remaining % 60}s`;
+  };
+
+  const executeAction = async (action: string, id: string, pType?: number, amount?: string) => {
+    try {
+        let fnName = '';
+        let args: any[] = [BigInt(id)];
+
+        if (action === 'accept') {
+            if (pType === 3 && window.ethereum) { 
+                showToast('info', 'Checking Bond', 'Verifying security deposit...');
+                const { ethers } = await import('ethers');
+                const provider = new ethers.BrowserProvider(window.ethereum as any);
+                const signer = await provider.getSigner();
+                const usdc = new ethers.Contract(USDC_ADDRESS, ERC20_ABI as any, signer);
+                const allowance = await usdc.allowance(address, CONTRACT_ADDRESS);
+                const requiredBond = BigInt(amount || '0');
+                if (allowance < requiredBond) {
+                    showToast('info', 'Approval Required', 'Please approve the USDC bond amount.');
+                    const tx = await usdc.approve(CONTRACT_ADDRESS, ethers.MaxUint256);
+                    await tx.wait();
+                    showToast('success', 'Bond Approved!', 'Now processing your acceptance...');
+                }
+                fnName = 'acceptBondedPayment';
+            } else {
+                fnName = 'acceptMediatedPayment';
+            }
+        }
+        else if (action === 'claim') fnName = 'claimTimelockedPayment';
+        else if (action === 'release') fnName = 'releasePayment';
+        else if (action === 'reclaim') fnName = 'reclaimExpiredPayment';
+        else if (action === 'dispute') fnName = 'disputePayment';
+        else return;
+
+        // FIXED: Added "as any" to bypass strict TypeScript checking for dynamic function calls
+        const hash = await writeContractAsync({ 
+            address: CONTRACT_ADDRESS as `0x${string}`, 
+            abi: CONTRACT_ABI, 
+            functionName: fnName as any, 
+            args: args as any 
+        });
+        
+        showToast('info', 'Transaction Submitted', 'Waiting for confirmation...');
+        const receipt = await waitForReceiptWithStatus(hash);
+        
+        if (receipt.status === 'success') {
+            showToast('success', 'Action Successful!', `https://testnet.arcscan.app/tx/${hash}`, 'View Explorer');
+            setTimeout(fetchPayments, 1000);
+        } else {
+            showToast('error', 'Transaction Failed');
+        }
+    } catch (e) {
+        showToast('error', 'Action Cancelled or Failed');
     }
   };
 
+  const getStatusDisplay = (p: any, isSender: boolean, isReceiver: boolean, isArbiter: boolean) => {
+    const status = p.status;
+    const isDisputed = status === 2;
+    const isTimelocked = p.pType === 1;
+    const availableAt = Number(p.availableAt);
+    const deadline = Number(p.deadline);
+    const isCoolingOff = status === 0 && now < availableAt;
+    const isExpired = status === 0 && now > deadline;
+
+    if (status === 4) return { text: 'Refunded', color: 'text-rose-600 bg-rose-50 border-rose-200', icon: XCircle };
+    if (status === 3) {
+      if (p.pType === 3 && p.resolvedTo === "0x0000000000000000000000000000000000000000") {
+          return { text: 'Slashed', color: 'text-rose-600 bg-rose-50 border-rose-200', icon: XCircle };
+      }
+      return { text: 'Completed', color: 'text-emerald-600 bg-emerald-50 border-emerald-200', icon: CheckCircle };
+    }
+    
+    if (isDisputed) return { text: 'In Dispute', color: 'text-amber-600 bg-amber-50 border-amber-200', icon: AlertTriangle };
+
+    if (status === 1) return { text: 'Active', color: 'text-indigo-600 bg-indigo-50 border-indigo-200', icon: Shield };
+
+    if (status === 0) {
+      if (isExpired) return { text: 'Expired', color: 'text-slate-600 bg-slate-100 border-slate-200', icon: Clock };
+      if (isTimelocked && isCoolingOff) return { text: `Locked: ${formatTimeRemaining(availableAt)}`, color: 'text-indigo-600 bg-indigo-50 border-indigo-200', icon: Snowflake };
+      if (isTimelocked && !isCoolingOff) return { text: 'Ready to Claim', color: 'text-emerald-600 bg-emerald-50 border-emerald-200', icon: CheckCircle };
+      return { text: 'Awaiting Action', color: 'text-amber-600 bg-amber-50 border-amber-200', icon: Clock };
+    }
+
+    return { text: 'Unknown', color: 'text-slate-500 bg-slate-100', icon: Clock };
+  };
+
+  const getActionButtons = (p: any, isSender: boolean, isReceiver: boolean, isArbiter: boolean) => {
+    if (p.status === 3 || p.status === 4 || p.status === 2) return null;
+
+    const isTimelocked = p.pType === 1;
+    const isBonded = p.pType === 3;
+    const availableAt = Number(p.availableAt);
+    const deadline = Number(p.deadline);
+    const isExpired = now > deadline;
+    const isCoolingOff = now < availableAt;
+
+    if (p.status === 0) {
+        if (isExpired && isSender) return <button onClick={() => executeAction('reclaim', p.id)} className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition-colors border border-slate-300 shadow-sm">Reclaim</button>;
+        if (isTimelocked && isReceiver && !isCoolingOff && !isExpired) return <button onClick={() => executeAction('claim', p.id)} className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm">Claim</button>;
+        if (!isTimelocked && isReceiver && !isExpired) return <button onClick={() => executeAction('accept', p.id, p.pType, p.bondAmount)} className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm">{isBonded ? 'Post Bond' : 'Accept'}</button>;
+    }
+
+    if (p.status === 1) {
+        if (isSender) return (
+            <div className="flex gap-2">
+                <button onClick={() => executeAction('release', p.id)} className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-bold rounded-lg transition-colors shadow-sm">Release</button>
+                <button onClick={() => executeAction('dispute', p.id)} className="px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded-lg transition-colors shadow-sm">Dispute</button>
+            </div>
+        );
+        if (isReceiver && !isBonded) return <button onClick={() => executeAction('dispute', p.id)} className="px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded-lg transition-colors shadow-sm">Dispute</button>;
+    }
+
+    return null;
+  };
+
+  const filteredPayments = payments.filter(p => {
+    if (filter === 'active') return p.status === 0 || p.status === 1 || p.status === 2;
+    if (filter === 'completed') return p.status === 3 || p.status === 4;
+    return true;
+  });
+
+  if (isLoading) {
+    return (
+      <div className={`w-full flex justify-center py-12 ${className}`}>
+        <Loader2 className="w-6 h-6 text-indigo-600 animate-spin" />
+      </div>
+    );
+  }
+
+  if (payments.length === 0) {
+    return (
+      <div className={`w-full flex flex-col items-center justify-center py-16 text-slate-500 bg-white border border-slate-200 rounded-xl shadow-sm ${className}`}>
+        <Banknote className="w-10 h-10 mb-3 opacity-50" />
+        <p className="text-sm font-semibold">No activity found</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="w-full space-y-3">
-      <div className="flex justify-between items-center px-2 mb-2">
-        <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 tracking-wider">
-          Live Transactions
-          {activities.length > 0 && (
-            <span className="ml-2 text-indigo-500 dark:text-indigo-400">({activities.length})</span>
-          )}
-        </span>
-        <button
-          onClick={handleRefresh}
-          disabled={refreshing}
-          className="text-[10px] flex items-center gap-1 text-indigo-500 dark:text-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-300 transition-colors disabled:opacity-50"
-        >
-          <RefreshCw size={10} className={refreshing ? 'animate-spin' : ''} />
-          {refreshing ? 'Refreshing...' : 'Refresh'}
-        </button>
+    <div className={`w-full space-y-4 ${className} animate-fade-in`}>
+      <div className="flex gap-2">
+        {(['all', 'active', 'completed'] as const).map(f => (
+          <button key={f} onClick={() => setFilter(f)} className={`px-4 py-1.5 text-xs font-bold uppercase tracking-wider rounded-md transition-all ${filter === f ? 'bg-slate-900 text-white shadow-sm' : 'bg-white border border-slate-200 text-slate-500 hover:bg-slate-50'}`}>
+            {f}
+          </button>
+        ))}
       </div>
 
-      <div className="bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden backdrop-blur-sm shadow-sm">
-        {loading ? (
-          <div className="p-8 text-center text-slate-500 text-xs flex items-center justify-center gap-2">
-            <Loader2 size={14} className="animate-spin" />
-            Loading transactions...
-          </div>
-        ) : activities.length === 0 ? (
-          <div className="p-8 text-center text-slate-500 text-xs">
-            No recent activity found.
-          </div>
-        ) : (
-          <div>
-            {activities.slice(0, 10).map((item, index) => (
-              <div
-                key={`${item.txHash}-${item.id}`}
-                className={`
-                    group flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all cursor-default
-                    ${index !== Math.min(activities.length, 10) - 1 ? 'border-b border-slate-200 dark:border-slate-800/50' : ''}
-                `}
-              >
-                <div className="flex items-center gap-4">
-                  <div className={`w-2 h-2 rounded-full ${getTypeColor(item.type)} shadow-[0_0_8px_rgba(0,0,0,0.5)]`} />
-                  <div className="flex flex-col">
-                    <span className="text-sm font-semibold text-slate-900 dark:text-slate-200">{item.type} Escrow</span>
-                    <span className="text-[10px] text-slate-500 font-mono flex items-center gap-1">
-                      ID: {item.id} <span className="w-0.5 h-0.5 bg-slate-400 dark:bg-slate-600 rounded-full" /> {item.timestamp}
-                    </span>
+      <div className="space-y-3">
+        {filteredPayments.map(p => {
+          const isSender = address?.toLowerCase() === p.sender.toLowerCase();
+          const isReceiver = address?.toLowerCase() === p.receiver.toLowerCase();
+          const isArbiter = address?.toLowerCase() === p.arbiter.toLowerCase();
+          const { text: statusText, color: statusColor, icon: StatusIcon } = getStatusDisplay(p, isSender, isReceiver, isArbiter);
+
+          return (
+            <div key={p.id} className="bg-white border border-slate-200 rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center hover:border-indigo-300 transition-colors shadow-sm">
+              <div className="space-y-3 w-full sm:w-auto">
+                <div className="flex items-center gap-3">
+                  <div className={`px-2.5 py-1 rounded-md border text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 ${statusColor}`}>
+                    <StatusIcon size={12} /> {statusText}
+                  </div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">ID #{p.id}</span>
+                </div>
+                
+                <div className="flex items-center gap-2 sm:gap-4 text-xs font-mono text-slate-500">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[9px] font-bold text-slate-400 uppercase font-sans">From</span>
+                    <span className={isSender ? 'text-indigo-600 font-bold' : ''}>{truncateAddress(p.sender)}</span>
+                  </div>
+                  <ArrowRight size={12} className="text-slate-300" />
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[9px] font-bold text-slate-400 uppercase font-sans">To</span>
+                    <span className={isReceiver ? 'text-indigo-600 font-bold' : ''}>{truncateAddress(p.receiver)}</span>
                   </div>
                 </div>
-
-                <div className="hidden sm:flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 font-mono bg-slate-100 dark:bg-slate-950/50 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800/50">
-                  <span className="text-slate-700 dark:text-slate-300">{shortenAddress(item.sender)}</span>
-                  <ArrowRight size={10} className="text-slate-400 dark:text-slate-600" />
-                  <span className="text-indigo-600 dark:text-indigo-300">{shortenAddress(item.receiver)}</span>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <a
-                    href={`${EXPLORER_URL}/tx/${item.txHash}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="p-2 text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-all"
-                    title="View on Explorer"
-                  >
-                    <ExternalLink size={14} />
-                  </a>
-                </div>
               </div>
-            ))}
-          </div>
-        )}
+
+              <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto gap-3 border-t border-slate-100 sm:border-0 pt-3 sm:pt-0">
+                <div className="text-right">
+                  <div className="font-bold text-slate-900 font-mono text-base">{(Number(p.amount) / 1e6).toFixed(2)} USDC</div>
+                  {p.pType === 3 && <div className="text-[10px] text-slate-500 font-semibold uppercase mt-0.5">Bond: {(Number(p.bondAmount) / 1e6).toFixed(2)}</div>}
+                </div>
+                {getActionButtons(p, isSender, isReceiver, isArbiter)}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
-}
-
-function getTypeColor(type: string) {
-  switch (type) {
-    case 'Mediated': return 'bg-indigo-500';
-    case 'Bonded': return 'bg-amber-400';
-    case 'Timelocked': return 'bg-blue-500';
-    default: return 'bg-slate-500';
-  }
 }
