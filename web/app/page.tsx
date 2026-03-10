@@ -203,9 +203,9 @@ const Header = ({ address, hasWallet, notifications = [], inbox = [], usdcBalanc
                   {notifications.length > 0 && <span className="absolute -top-1 -right-1 w-2 h-2 sm:w-2.5 sm:h-2.5 bg-rose-500 rounded-full ring-2 ring-white" />}
                 </button>
 
-                {/* INBOX DROPDOWN */}
+                {/* INBOX DROPDOWN - FIXED FOR MOBILE */}
                 {isInboxOpen && (
-                  <div className="absolute right-0 mt-12 w-[calc(100vw-2rem)] max-w-[340px] rounded-xl bg-white border border-slate-200 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] overflow-hidden animate-fade-in z-50">
+                  <div className="fixed sm:absolute top-[70px] sm:top-auto sm:mt-12 right-2 sm:right-0 left-2 sm:left-auto sm:w-[340px] max-w-[340px] rounded-xl bg-white border border-slate-200 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] overflow-hidden animate-fade-in z-50">
                     <div className="p-3 border-b border-slate-100 bg-slate-50/80 flex justify-between items-center">
                       <h3 className="font-bold text-slate-900 text-xs tracking-wider uppercase">Inbox</h3>
                       <div className="flex items-center gap-3">
@@ -269,9 +269,9 @@ const Header = ({ address, hasWallet, notifications = [], inbox = [], usdcBalanc
                   </div>
                 )}
 
-                {/* NOTIFICATIONS DROPDOWN */}
+                {/* NOTIFICATIONS DROPDOWN - FIXED FOR MOBILE */}
                 {isBellOpen && (
-                  <div className="absolute right-0 mt-12 w-[calc(100vw-2rem)] max-w-[340px] rounded-xl bg-white border border-slate-200 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] overflow-hidden animate-fade-in z-50">
+                  <div className="fixed sm:absolute top-[70px] sm:top-auto sm:mt-12 right-2 sm:right-0 left-2 sm:left-auto sm:w-[340px] max-w-[340px] rounded-xl bg-white border border-slate-200 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] overflow-hidden animate-fade-in z-50">
                     <div className="p-3 border-b border-slate-100 bg-slate-50/80 flex justify-between items-center">
                       <div className="flex items-center gap-2">
                         <h3 className="font-bold text-slate-900 text-xs tracking-wider uppercase">Actions</h3>
@@ -553,11 +553,11 @@ export default function Home() {
         <div className="absolute top-[-10%] left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-indigo-500/10 rounded-full blur-[120px]" />
       </div>
 
-      {/* BRANDED FEEDBACK TAB */}
-      <div className="hidden lg:flex fixed right-0 top-1/2 -translate-y-1/2 z-[60]">
-        <button onClick={() => setIsFeedbackOpen(true)} className="bg-indigo-600 text-white hover:bg-indigo-700 py-4 px-2 rounded-l-lg shadow-md shadow-indigo-600/20 border border-r-0 border-indigo-700 transition-colors flex flex-col items-center gap-2">
-          <MessageSquareQuote size={14} className="text-indigo-50" />
-          <span className="[writing-mode:vertical-lr] font-bold tracking-widest text-[9px] rotate-180 uppercase mt-0.5 text-white">Feedback</span>
+      {/* BRANDED FEEDBACK TAB - NOW VISIBLE ON ALL SCREENS */}
+      <div className="flex fixed right-0 top-1/2 -translate-y-1/2 z-[60]">
+        <button onClick={() => setIsFeedbackOpen(true)} className="bg-indigo-600 text-white hover:bg-indigo-700 py-3 px-1.5 sm:py-4 sm:px-2 rounded-l-lg shadow-md shadow-indigo-600/20 border border-r-0 border-indigo-700 transition-colors flex flex-col items-center gap-2">
+          <MessageSquareQuote size={12} className="sm:w-[14px] sm:h-[14px] text-indigo-50" />
+          <span className="[writing-mode:vertical-lr] font-bold tracking-widest text-[8px] sm:text-[9px] rotate-180 uppercase mt-0.5 text-white">Feedback</span>
         </button>
       </div>
 
@@ -689,9 +689,6 @@ export default function Home() {
           <a href="https://faucet.circle.com/" target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:text-indigo-800 transition-colors underline decoration-indigo-200 hover:decoration-indigo-400 underline-offset-2 sm:underline-offset-4">USDC Faucet</a>
           <span className="text-slate-300">•</span>
           <a href="https://testnet.arcscan.app/" target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:text-indigo-800 transition-colors underline decoration-indigo-200 hover:decoration-indigo-400 underline-offset-2 sm:underline-offset-4">Arc Explorer</a>
-          {/* MOBILE FEEDBACK LINK */}
-          <span className="text-slate-300 lg:hidden">•</span>
-          <button onClick={() => setIsFeedbackOpen(true)} className="lg:hidden text-indigo-600 hover:text-indigo-800 transition-colors underline decoration-indigo-200 hover:decoration-indigo-400 underline-offset-2 sm:underline-offset-4 uppercase">Feedback</button>
         </div>
       </footer>
 
