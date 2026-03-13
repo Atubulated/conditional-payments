@@ -223,8 +223,10 @@ const Header = ({ address, hasWallet, notifications = [], inbox = [], usdcBalanc
 
                             return (
                               <div key={notifId} onClick={() => toggleMsgExpand(msg.id, msg.status)} className={`p-4 cursor-pointer transition-colors ${isRead ? 'hover:bg-slate-50 dark:hover:bg-slate-800/50 opacity-80' : 'bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800'}`}>
-                                <div className="flex gap-3 items-start relative">
-                                  {!isRead && <div className="absolute -left-3 top-1.5 w-2 h-2 rounded-full bg-indigo-500 shadow-sm" />}
+                                <div className="flex gap-3 items-start">
+                                  <div className="w-2 flex-shrink-0 flex justify-center pt-1.5">
+                                    {!isRead && <div className="w-2 h-2 rounded-full bg-indigo-500 shadow-sm" />}
+                                  </div>
                                   <Icon size={16} className={`${color} shrink-0 mt-0.5`} />
                                   <div className="flex-1 min-w-0">
                                     <div className="flex justify-between items-center mb-1">
@@ -395,8 +397,6 @@ const TabButton = ({ active, onClick, icon: Icon, label }: any) => (
 /* MAIN PAGE                                                                  */
 /* -------------------------------------------------------------------------- */
 
-let cachedEthers: any = null;
-
 export default function Home() {
   const { address, status } = useAccount();
   const { showToast } = useToast();
@@ -466,7 +466,7 @@ export default function Home() {
         const actionablePayments: any[] = [];
         const historyPayments: any[] = [];
 
-        // THE FIX: Sort numerically in Javascript so "10" doesn't hide behind "9"
+        // Sort numerically in Javascript so "10" doesn't hide behind "9"
         const sortedData = paymentsRes.data.sort((a: any, b: any) => Number(b.id) - Number(a.id));
 
         sortedData.forEach((d: any) => {
@@ -494,13 +494,12 @@ export default function Home() {
   const syncNewEscrows = useCallback(async () => {
     if (!address || !window.ethereum) return;
     try {
-      if (!cachedEthers) cachedEthers = await import('ethers');
-      const { ethers } = cachedEthers;
+      const { ethers } = await import('ethers');
       
       const provider = new ethers.BrowserProvider(window.ethereum as any);
       const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI as any, provider);
 
-      // THE FIX: Stop infinite loop by correctly calculating the highest numeric ID
+      // Stop infinite loop by correctly calculating the highest numeric ID
       const { data } = await supabase.from('escrow_payments').select('id');
       let nextId = 0;
       if (data && data.length > 0) {
