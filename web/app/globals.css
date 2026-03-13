@@ -3,14 +3,23 @@
 @tailwind utilities;
 
 :root {
-  /* Restoring your custom shapes */
-  --radius-sm: 6px;
-  --radius-md: 12px;
-  --radius-lg: 20px;
-  --radius-full: 9999px;
+  --bg-primary: #F8F9FA;
+  --text-primary: #0f172a;
+  --bg-card: #ffffff;
+  
+  /* Restoring the missing curve measurements */
+  --radius-lg: 0.5rem;
+  --radius-md: 0.375rem;
+  --radius-sm: 0.25rem;
+}
+
+[class~="dark"] {
+  --bg-primary: #020617;
+  --text-primary: #f8fafc;
+  --bg-card: #0f172a;
 }
 
 body {
-  background-color: #F8F9FA;
-  color: #0f172a;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
 }

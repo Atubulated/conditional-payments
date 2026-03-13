@@ -3,6 +3,7 @@ import type { Config } from "tailwindcss";
 const config: Config = {
   darkMode: "class",
   content: [
+    "./src/**/*.{js,ts,jsx,tsx,mdx}",
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
     "./pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
@@ -24,7 +25,7 @@ const config: Config = {
         },
 
         slate: {
-          950: "#020617", // Ensure this exists explicitly if needed
+          950: "#020617",
         }
       },
       fontFamily: {

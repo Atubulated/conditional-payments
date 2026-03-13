@@ -6,9 +6,11 @@ import {
   RainbowKitProvider,
   getDefaultConfig,
   lightTheme,
+  darkTheme,
 } from '@rainbow-me/rainbowkit';
 import { type Chain } from 'wagmi/chains';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useTheme } from 'next-themes';
 import { ToastProvider } from './Toast';
 
 const arcTestnet: Chain = {
@@ -34,14 +36,29 @@ const queryClient = new QueryClient({
 });
 
 export function Providers({ children }: { children: React.ReactNode }) {
+  const { resolvedTheme } = useTheme();
+  const [mounted, setMounted] = React.useState(false);
+
+  // Prevent hydration mismatch by waiting until the component is mounted on the client
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const appLightTheme = lightTheme({ 
+    accentColor: '#4f46e5', // Indigo-600
+    borderRadius: 'large',
+  });
+
+  const appDarkTheme = darkTheme({ 
+    accentColor: '#4f46e5', // Indigo-600
+    borderRadius: 'large',
+  });
+
   return (
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
         <RainbowKitProvider 
-          theme={lightTheme({ 
-            accentColor: '#4f46e5', // Indigo-600 to match the brand
-            borderRadius: 'large',
-          })}
+          theme={mounted && resolvedTheme === 'dark' ? appDarkTheme : appLightTheme}
         >
           <ToastProvider>
             {children}

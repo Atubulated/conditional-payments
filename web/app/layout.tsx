@@ -3,6 +3,7 @@ import { Plus_Jakarta_Sans, JetBrains_Mono } from 'next/font/google';
 import '@rainbow-me/rainbowkit/styles.css';
 import './globals.css';
 import { Providers } from './providers';
+import { ThemeProvider } from './ThemeProvider';
 
 const plusJakarta = Plus_Jakarta_Sans({
   subsets: ['latin'],
@@ -31,12 +32,14 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${plusJakarta.variable} ${jetbrainsMono.variable} font-sans`}>
-        <Providers>
-          <div className="relative z-10">
-            {children}
-          </div>
-        </Providers>
+      <body className={`${plusJakarta.variable} ${jetbrainsMono.variable} font-sans bg-background text-foreground transition-colors duration-300`}>
+        <ThemeProvider>
+          <Providers>
+            <div className="relative z-10">
+              {children}
+            </div>
+          </Providers>
+        </ThemeProvider>
       </body>
     </html>
   );
