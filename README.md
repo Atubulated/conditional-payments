@@ -1,160 +1,38 @@
-# Conditional Payments Infrastructure
+# Custodex: Conditional Payments Infrastructure
 
-> **Non-custodial escrow infrastructure for programmable payments on Arc Network**
+[![Solidity](https://img.shields.io/badge/Solidity-%5E0.8.20-363636.svg?logo=solidity)](https://soliditylang.org/)
+[![Foundry](https://img.shields.io/badge/Built%20with-Foundry-FF8A00.svg)](https://book.getfoundry.sh/)
+[![Network](https://img.shields.io/badge/Network-Arc_Testnet-4F46E5.svg)](https://arc.network)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A composable smart contract system that enables developers to build conditional payment applications with guaranteed execution and trustless escrow.
+> **Non-custodial escrow infrastructure for programmable payments on the Arc Network.**
 
----
-
-## 🎯 What Is This?
-
-This is **payment infrastructure**, not an end-user app. It's designed for **builders** to create their own payment solutions on top of it.
-
-Think of it like:
-- **Stripe** provides payment infrastructure for web apps
-- **This** provides conditional payment infrastructure for blockchain apps
+Custodex is a composable smart contract system that enables developers to build conditional payment applications with guaranteed execution and trustless escrow. It is designed as a foundational layer for builders, functioning similarly to Stripe for traditional web apps, but operating entirely on-chain.
 
 ---
 
-## ✨ Features
+## 📖 Protocol Overview
 
-### Core Capabilities
-- ✅ **Lock funds with conditions** - Escrow with custom terms
-- ✅ **Three-way resolution** - Accept, Reject, or Auto-refund
-- ✅ **Flexible deadlines** - Default 24 hours, extendable up to 30 days
-- ✅ **Non-custodial** - Smart contract holds funds, not a third party
-- ✅ **ERC20 compatible** - Works with any token (USDC, etc.)
-- ✅ **Event-driven** - Easy integration with off-chain systems
+Custodex allows developers to easily integrate complex, conditional holding logic into their dApps without having to write escrow contracts from scratch. 
 
-### Security Features
-- 🔒 **Reentrancy protection**
-- 🔒 **Safe token transfers**
-- 🔒 **Access control**
-- 🔒 **Time-locked refunds**
-- 🔒 **Comprehensive testing**
+**Core Capabilities:**
+* **Programmable Escrow:** Lock ERC20 tokens (e.g., USDC) with specific, time-bound conditions.
+* **Three-Way Resolution:** Native support for standard acceptance, sender-initiated rejection, and automated expiries.
+* **Arbitration Native:** Built-in dispute resolution routing for mediated transactions.
+* **Non-Custodial Architecture:** Funds are locked in immutable smart contracts, removing counterparty risk.
+
+**Target Use Cases:**
+* **DeFi Primitives:** OTC trading, options contracts, and conditional treasury management.
+* **Marketplaces:** Trustless peer-to-peer freelance platforms or service bookings.
+* **Business Tools:** Automated payment splitting, rental deposits, and milestone-based grants.
 
 ---
 
-## 🏗️ What Can You Build?
+## 🏗️ Architecture & Payment Flow
 
-This infrastructure enables:
+The protocol utilizes a state-driven payment lifecycle to ensure funds are never permanently locked and both parties have cryptographically guaranteed rights.
 
-### Financial Applications
-- **Freelance payment platforms** - "Accept if you'll deliver by Friday"
-- **Rental deposits** - "Accept if apartment is available"
-- **Purchase agreements** - "Accept if item is in stock"
-- **Service bookings** - "Accept if you can do the job"
-
-### Business Tools
-- **Conditional gifts** - "Accept if used for education"
-- **Escrow services** - Trustless third-party holding
-- **Payment splitting** - Multi-party agreements
-- **Recurring conditionals** - Subscription-style payments
-
-### DeFi Primitives
-- **OTC trading** - Peer-to-peer swaps
-- **Options contracts** - Time-based financial instruments
-- **Insurance payouts** - Conditional claim releases
-- **Treasury management** - Multi-sig with conditions
-
----
-
-## 🚀 Quick Start
-
-### For Infrastructure Deployers
-
-```bash
-# 1. Clone and setup
-git clone <your-repo>
-cd conditional-payments
-forge install
-
-# 2. Test locally
-forge test -vvv
-
-# 3. Deploy to Arc testnet
-forge script script/Deploy.s.sol --rpc-url arc_testnet --broadcast
-```
-
-See [SETUP_GUIDE.md](SETUP_GUIDE.md) for detailed instructions.
-
-### For App Builders
-
-```javascript
-import { ethers } from 'ethers';
-
-// Connect to deployed contract
-const contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
-
-// Create a conditional payment
-const tx = await contract.createPayment(
-    receiverAddress,
-    usdcAddress,
-    ethers.parseUnits("1000", 6), // 1000 USDC
-    ethers.keccak256(ethers.toUtf8Bytes(JSON.stringify(terms))),
-    0 // Use default 24h deadline
-);
-```
-
-See [BUILDER_INTEGRATION.md](BUILDER_INTEGRATION.md) for complete examples.
-
----
-
-## 📁 Project Structure
-
-```
-conditional-payments/
-├── src/
-│   └── ConditionalPayments.sol    # Main contract
-├── test/
-│   └── ConditionalPayments.t.sol  # Comprehensive tests
-├── script/
-│   └── Deploy.s.sol               # Deployment script
-├── docs/
-│   ├── SETUP_GUIDE.md             # Setup instructions
-│   └── BUILDER_INTEGRATION.md     # Integration examples
-├── foundry.toml                   # Foundry configuration
-└── README.md                      # This file
-```
-
----
-
-## 🔧 Technical Specification
-
-### Contract Interface
-
-```solidity
-interface IConditionalPayments {
-    // Create a payment
-    function createPayment(
-        address receiver,
-        address token,
-        uint256 amount,
-        bytes32 termsHash,
-        uint256 customDeadline
-    ) external returns (uint256 paymentId);
-    
-    // Receiver actions
-    function acceptPayment(uint256 paymentId) external;
-    function rejectPayment(uint256 paymentId) external;
-    
-    // Expiry handling
-    function claimExpiredPayment(uint256 paymentId) external;
-    
-    // Deadline management
-    function extendDeadline(uint256 paymentId, uint256 additionalTime) external;
-    
-    // View functions
-    function getPayment(uint256 paymentId) external view returns (Payment memory);
-    function getSenderPayments(address sender) external view returns (uint256[] memory);
-    function getReceiverPayments(address receiver) external view returns (uint256[] memory);
-    function timeRemaining(uint256 paymentId) external view returns (uint256);
-}
-```
-
-### Payment Flow
-
-```
+```text
 ┌─────────┐                    ┌──────────┐                    ┌──────────┐
 │ Sender  │                    │ Contract │                    │ Receiver │
 └────┬────┘                    └────┬─────┘                    └────┬─────┘
@@ -163,170 +41,108 @@ interface IConditionalPayments {
      ├─────────────────────────────>│                               │
      │                              │                               │
      │ 2. Lock funds                │                               │
-     │ <─────────────────────────────┤                               │
+     │ <────────────────────────────┤                               │
      │                              │                               │
      │                              │ 3. Notify receiver            │
      │                              ├──────────────────────────────>│
      │                              │                               │
-     │                              │ 4a. acceptPayment() OR        │
+     │                              │ 4. acceptPayment() OR         │
      │                              │ <─────────────────────────────┤
-     │                              │     rejectPayment() OR        │
-     │                              │     (timeout)                 │
+     │                              │    rejectPayment() OR         │
+     │                              │    (timeout)                  │
      │                              │                               │
-     │ 5. Refund (if rejected)      │ 5. Release (if accepted)      │
-     │ <─────────────────────────────┤──────────────────────────────>│
-     │      or timeout              │                               │
-```
+     │ 5. Refund (if rejected/exp)  │ 5. Release (if accepted)      │
+     │ <────────────────────────────┤──────────────────────────────>│
 
----
+     💻 Developer Integration
+1. Smart Contract Interface
+To interact with the Custodex protocol at the contract level, utilize the following interface:
+interface IConditionalPayments {
+    function createPayment(
+        address receiver,
+        address token,
+        uint256 amount,
+        bytes32 termsHash,
+        uint256 customDeadline
+    ) external returns (uint256 paymentId);
+    
+    function acceptPayment(uint256 paymentId) external;
+    function rejectPayment(uint256 paymentId) external;
+    function claimExpiredPayment(uint256 paymentId) external;
+    function extendDeadline(uint256 paymentId, uint256 additionalTime) external;
+    
+    function getPayment(uint256 paymentId) external view returns (Payment memory);
+    function getSenderPayments(address sender) external view returns (uint256[] memory);
+    function getReceiverPayments(address receiver) external view returns (uint256[] memory);
+}
 
-## 🧪 Testing
+2. Client-Side Quick Start (Ethers.js)
+Integrating Custodex into a frontend application requires standard contract interaction:
+import { ethers } from 'ethers';
 
-The contract includes comprehensive tests covering:
+// Initialize contract instance
+const contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
 
-- ✅ Payment creation (valid/invalid scenarios)
-- ✅ Acceptance by receiver
-- ✅ Rejection by receiver
-- ✅ Expiration and auto-refund
-- ✅ Deadline extensions
-- ✅ Access control (authorization checks)
-- ✅ Edge cases and security
+// Execute a conditional payment
+const tx = await contract.createPayment(
+    receiverAddress,
+    usdcAddress,
+    ethers.parseUnits("1000", 6), // 1000 USDC
+    ethers.keccak256(ethers.toUtf8Bytes(JSON.stringify(terms))),
+    0 // Uses default protocol deadline (24h)
+);
+await tx.wait();
+See BUILDER_INTEGRATION.md for complete implementation examples.
 
-```bash
+
+🛡️ Security & Testing
+Custodex is built with a security-first approach, utilizing OpenZeppelin standards.
+
+Reentrancy Protection: Implemented on all state-changing and token-transfer functions.
+
+SafeERC20: Utilizing safe transfer libraries to handle non-standard ERC20 behaviors.
+
+Strict Access Control: Resolution functions are cryptographically restricted to assigned participants (Sender, Receiver, or assigned Arbiter).
+
+Running the Test Suite:
+The project uses Foundry for comprehensive unit and fuzz testing.
 # Run all tests
 forge test -vvv
 
-# Run specific test
-forge test --match-test test_AcceptPayment -vvv
-
-# Gas report
+# Generate gas report
 forge test --gas-report
-```
 
----
+🌐 Deployment Details
+Arc Testnet Configuration
 
-## 🌐 Deployment Info
+Network RPC: https://testnet.arc.network
 
-### Arc Testnet
-- **RPC URL:** https://testnet.arc.network
-- **Explorer:** https://testnet.arcscan.app
-- **Faucet:** https://faucet.circle.com
-- **Contract Address:** `[DEPLOYED_ADDRESS]`
+Explorer: https://testnet.arcscan.app
 
-### Configuration
-- **Default Deadline:** 24 hours
-- **Min Extension:** 1 hour
-- **Max Extension:** 30 days
-- **Gas Token:** USDC
+USDC Faucet: https://faucet.circle.com
 
----
+Deployed Contract: [INSERT_DEPLOYED_ADDRESS_HERE]
 
-## 📊 Gas Costs (Approximate)
+Protocol Parameters
 
-| Operation | Gas Cost |
-|-----------|----------|
-| Create Payment | ~100,000 |
-| Accept Payment | ~50,000 |
-| Reject Payment | ~50,000 |
-| Claim Expired | ~50,000 |
-| Extend Deadline | ~30,000 |
+Default Expiry: 24 hours
 
-*Costs may vary based on network conditions*
+Max Extension: 30 days
 
----
+Supported Assets: ERC20 Compatible (Optimized for USDC)
 
-## 🔐 Security
 
-### Audits
-- ⚠️ **Not yet audited** - Use at your own risk on testnet
-- Built using OpenZeppelin audited contracts
-- Comprehensive test coverage
+🤝 Contributing
+Custodex is public infrastructure. We welcome pull requests for protocol enhancements.
 
-### Best Practices
-- Never store private keys in code
-- Always validate user input
-- Use environment variables for sensitive data
-- Test thoroughly before mainnet deployment
+Current Roadmap:
 
----
+[ ] Multi-signature approval matrices
 
-## 🤝 Contributing
+[ ] Partial acceptance / Milestoned payments
 
-This is infrastructure - contributions welcome!
+[ ] Protocol-level dispute resolution mechanics
 
-### Areas for Enhancement
-- [ ] Multi-signature approval
-- [ ] Partial acceptance (split payments)
-- [ ] Recurring conditional payments
-- [ ] Dispute resolution mechanism
-- [ ] Integration with oracles
-- [ ] Batch operations
+Please ensure all tests pass (forge test) before submitting a PR. See SETUP_GUIDE.md for local environment configuration.
 
-### How to Contribute
-1. Fork the repository
-2. Create a feature branch
-3. Add tests for new functionality
-4. Ensure all tests pass
-5. Submit a pull request
-
----
-
-## 📄 License
-
-MIT License - see LICENSE file for details
-
----
-
-## 🆘 Support
-
-- **Documentation:** See `/docs` folder
-- **Issues:** Open a GitHub issue
-- **Questions:** Discussion board or Discord
-
----
-
-## 🙏 Acknowledgments
-
-Built for the Arc Network testnet builder community.
-
-Powered by:
-- [Foundry](https://github.com/foundry-rs/foundry) - Development framework
-- [OpenZeppelin](https://openzeppelin.com/) - Security libraries
-- [Arc Network](https://arc.network) - Layer 1 blockchain
-
----
-
-## 📈 Roadmap
-
-### Phase 1 (Current)
-- ✅ Core escrow functionality
-- ✅ Testing suite
-- ✅ Documentation
-- ✅ Testnet deployment
-
-### Phase 2 (Next)
-- [ ] Frontend demo application
-- [ ] Advanced features (multi-sig, recurring)
-- [ ] Security audit
-- [ ] Mainnet deployment
-
-### Phase 3 (Future)
-- [ ] SDK for popular languages
-- [ ] Template applications
-- [ ] Integration plugins
-- [ ] Analytics dashboard
-
----
-
-## 💬 Community
-
-Join the builder community:
-- **Discord:** [Arc Network Discord](https://discord.com/invite/buildonarc)
-- **Twitter:** [@arc](http://x.com/arc)
-- **Docs:** [docs.arc.network](https://docs.arc.network)
-
----
-
-**Built with ❤️ for the Arc ecosystem**
-
-*Making programmable payments accessible to all builders*
+Built for the Arc Network developer ecosystem.
