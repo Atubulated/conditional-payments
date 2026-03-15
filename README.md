@@ -1,4 +1,3 @@
-```markdown
 # Custodex: Conditional Payments Infrastructure
 
 [![Solidity](https://img.shields.io/badge/Solidity-%5E0.8.20-363636.svg?logo=solidity)](https://soliditylang.org/)
@@ -33,30 +32,25 @@ Custodex allows developers to easily integrate complex, conditional holding logi
 
 The protocol utilizes a state-driven payment lifecycle to ensure funds are never permanently locked and both parties have cryptographically guaranteed rights.
 
-```text
-┌─────────┐                    ┌──────────┐                    ┌──────────┐
-│ Sender  │                    │ Contract │                    │ Receiver │
-└────┬────┘                    └────┬─────┘                    └────┬─────┘
-     │                              │                               │
-     │ 1. createPayment()           │                               │
-     ├─────────────────────────────>│                               │
-     │                              │                               │
-     │ 2. Lock funds                │                               │
-     │ <────────────────────────────┤                               │
-     │                              │                               │
-     │                              │ 3. Notify receiver            │
-     │                              ├──────────────────────────────>│
-     │                              │                               │
-     │                              │ 4. acceptPayment() OR         │
-     │                              │ <─────────────────────────────┤
-     │                              │    rejectPayment() OR         │
-     │                              │    (timeout)                  │
-     │                              │                               │
-     │ 5. Refund (if rejected/exp)  │ 5. Release (if accepted)      │
-     │ <────────────────────────────┤──────────────────────────────>│
+```mermaid
+sequenceDiagram
+    autonumber
+    participant S as Sender
+    participant C as Contract
+    participant R as Receiver
 
-```
-
+    S->>C: createPayment()
+    Note right of C: Funds Locked in Escrow
+    C-->>R: Notify receiver
+    
+    alt Accept
+        R->>C: acceptPayment()
+        C->>R: Release funds
+    else Reject or Timeout
+        R->>C: rejectPayment()
+        C->>S: Refund funds
+    end
+    ```
 ---
 
 ## 💻 Developer Integration
