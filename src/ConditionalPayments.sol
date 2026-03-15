@@ -9,8 +9,19 @@ contract ConditionalPayments is ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     // ============ ENUMS & STRUCTS ============
-    enum PaymentType { Simple, Timelocked, Mediated, Bonded }
-    enum Status { Pending, Accepted, Disputed, Resolved, Refunded }
+    enum PaymentType {
+        Simple,
+        Timelocked,
+        Mediated,
+        Bonded
+    }
+    enum Status {
+        Pending,
+        Accepted,
+        Disputed,
+        Resolved,
+        Refunded
+    }
 
     struct Payment {
         address sender;
@@ -19,9 +30,9 @@ contract ConditionalPayments is ReentrancyGuard {
         address token;
         uint256 amount;
         uint256 bondAmount;
-        uint256 deadline; 
-        uint256 availableAt; 
-        uint256 acceptedAt; 
+        uint256 deadline;
+        uint256 availableAt;
+        uint256 acceptedAt;
         bytes32 termsHash;
         PaymentType pType;
         Status status;
@@ -35,23 +46,23 @@ contract ConditionalPayments is ReentrancyGuard {
     mapping(address => uint256[]) private paymentsByReceiver;
     mapping(address => uint256[]) private paymentsBySender;
 
-    address public treasury; 
+    address public treasury;
     address public constant BURN_ADDRESS = 0x000000000000000000000000000000000000dEaD;
 
     // ============ EVENTS ============
     event PaymentCreated(uint256 indexed id, PaymentType pType, address sender, address receiver);
     event PaymentAccepted(uint256 indexed id, address receiver);
     event PaymentDeclined(uint256 indexed id, address receiver);
-    event PaymentResolved(uint256 indexed id); 
+    event PaymentResolved(uint256 indexed id);
     event PaymentRefunded(uint256 indexed id);
 
     // ============ ERRORS ============
     error NotAuthorized();
     error InvalidStatus();
-    error DeadlinePassed(); 
-    error DeadlineNotPassed(); 
-    error CoolingOffPeriodActive(); 
-    error TokenTransferFailed(); 
+    error DeadlinePassed();
+    error DeadlineNotPassed();
+    error CoolingOffPeriodActive();
+    error TokenTransferFailed();
 
     // ============ CONSTRUCTOR ============
     constructor() {
@@ -59,17 +70,44 @@ contract ConditionalPayments is ReentrancyGuard {
     }
 
     // ============ CREATE FUNCTIONS ============
-    function createTimelockedPayment(address receiver, address token, uint256 amount, uint256 acceptanceDelay, bytes32 termsHash, uint256 deadline) external nonReentrant returns (uint256 paymentId) {
+    function createTimelockedPayment(
+        address receiver,
+        address token,
+        uint256 amount,
+        uint256 acceptanceDelay,
+        bytes32 termsHash,
+        uint256 deadline
+    ) external nonReentrant returns (uint256 paymentId) {
         uint256 availableAt = block.timestamp + acceptanceDelay;
-        paymentId = _createBase(receiver, address(0), token, amount, 0, availableAt, termsHash, PaymentType.Timelocked, deadline);
+        paymentId = _createBase(
+            receiver, address(0), token, amount, 0, availableAt, termsHash, PaymentType.Timelocked, deadline
+        );
     }
 
-    function createMediatedPayment(address receiver, address arbiter, address token, uint256 amount, bytes32 termsHash, uint256 deadline) external nonReentrant returns (uint256 paymentId) {
-        paymentId = _createBase(receiver, arbiter, token, amount, 0, block.timestamp, termsHash, PaymentType.Mediated, deadline);
+    function createMediatedPayment(
+        address receiver,
+        address arbiter,
+        address token,
+        uint256 amount,
+        bytes32 termsHash,
+        uint256 deadline
+    ) external nonReentrant returns (uint256 paymentId) {
+        paymentId = _createBase(
+            receiver, arbiter, token, amount, 0, block.timestamp, termsHash, PaymentType.Mediated, deadline
+        );
     }
 
-    function createBondedPayment(address receiver, address token, uint256 amount, uint256 bondAmount, bytes32 termsHash, uint256 deadline) external nonReentrant returns (uint256 paymentId) {
-        paymentId = _createBase(receiver, address(0), token, amount, bondAmount, block.timestamp, termsHash, PaymentType.Bonded, deadline);
+    function createBondedPayment(
+        address receiver,
+        address token,
+        uint256 amount,
+        uint256 bondAmount,
+        bytes32 termsHash,
+        uint256 deadline
+    ) external nonReentrant returns (uint256 paymentId) {
+        paymentId = _createBase(
+            receiver, address(0), token, amount, bondAmount, block.timestamp, termsHash, PaymentType.Bonded, deadline
+        );
     }
 
     // ============ ACTION FUNCTIONS ============
@@ -84,9 +122,9 @@ contract ConditionalPayments is ReentrancyGuard {
 
         payment.receiverAccepted = true;
         payment.status = Status.Resolved;
-        payment.acceptedAt = block.timestamp; 
+        payment.acceptedAt = block.timestamp;
         payment.resolvedTo = payment.receiver; // RECORD WINNER
-        
+
         _safeTransfer(payment.token, payment.receiver, payment.amount);
 
         emit PaymentAccepted(paymentId, msg.sender);
@@ -137,7 +175,7 @@ contract ConditionalPayments is ReentrancyGuard {
         if (payment.status != Status.Accepted) revert InvalidStatus();
         if (payment.pType != PaymentType.Bonded) revert InvalidStatus();
 
-        payment.status = Status.Resolved; 
+        payment.status = Status.Resolved;
         payment.resolvedTo = address(0); // RECORD AS BURNED/SLASHED
 
         uint256 totalPool = payment.amount + payment.bondAmount;
@@ -159,15 +197,15 @@ contract ConditionalPayments is ReentrancyGuard {
         payment.resolvedTo = payment.receiver; // RECORD WINNER
         uint256 totalPayout = payment.amount + payment.bondAmount;
         _safeTransfer(payment.token, payment.receiver, totalPayout);
-        
+
         emit PaymentResolved(paymentId);
     }
 
     function disputePayment(uint256 paymentId) external {
         Payment storage payment = payments[paymentId];
         if (msg.sender != payment.sender && msg.sender != payment.receiver) revert NotAuthorized();
-        if (payment.pType == PaymentType.Bonded) revert InvalidStatus(); 
-        
+        if (payment.pType == PaymentType.Bonded) revert InvalidStatus();
+
         payment.status = Status.Disputed;
     }
 
@@ -197,18 +235,35 @@ contract ConditionalPayments is ReentrancyGuard {
 
     // ============ INTERNAL HELPERS ============
     function _createBase(
-        address receiver, address arbiter, address token, uint256 amount, uint256 bond,
-        uint256 availableAt, bytes32 terms, PaymentType pType, uint256 deadline
+        address receiver,
+        address arbiter,
+        address token,
+        uint256 amount,
+        uint256 bond,
+        uint256 availableAt,
+        bytes32 terms,
+        PaymentType pType,
+        uint256 deadline
     ) internal returns (uint256 id) {
         id = _paymentIdCounter++;
         payments[id] = Payment({
-            sender: msg.sender, receiver: receiver, arbiter: arbiter, token: token,
-            amount: amount, bondAmount: bond, deadline: deadline, availableAt: availableAt,
-            acceptedAt: 0, termsHash: terms, pType: pType, status: Status.Pending, receiverAccepted: false,
+            sender: msg.sender,
+            receiver: receiver,
+            arbiter: arbiter,
+            token: token,
+            amount: amount,
+            bondAmount: bond,
+            deadline: deadline,
+            availableAt: availableAt,
+            acceptedAt: 0,
+            termsHash: terms,
+            pType: pType,
+            status: Status.Pending,
+            receiverAccepted: false,
             resolvedTo: address(0)
         });
         paymentsByReceiver[receiver].push(id);
-        paymentsBySender[msg.sender].push(id); 
+        paymentsBySender[msg.sender].push(id);
         _safeTransferFrom(token, msg.sender, address(this), amount);
         emit PaymentCreated(id, pType, msg.sender, receiver);
     }
@@ -219,11 +274,20 @@ contract ConditionalPayments is ReentrancyGuard {
     }
 
     function _safeTransferFrom(address token, address from, address to, uint256 amount) internal {
-        (bool success, bytes memory data) = token.call(abi.encodeWithSelector(IERC20.transferFrom.selector, from, to, amount));
+        (bool success, bytes memory data) =
+            token.call(abi.encodeWithSelector(IERC20.transferFrom.selector, from, to, amount));
         if (!success || (data.length > 0 && !abi.decode(data, (bool)))) revert TokenTransferFailed();
     }
 
-    function getPayment(uint256 paymentId) external view returns (Payment memory) { return payments[paymentId]; }
-    function getPaymentsForReceiver(address receiver) external view returns (uint256[] memory) { return paymentsByReceiver[receiver]; }
-    function getPaymentsForSender(address sender) external view returns (uint256[] memory) { return paymentsBySender[sender]; }
+    function getPayment(uint256 paymentId) external view returns (Payment memory) {
+        return payments[paymentId];
+    }
+
+    function getPaymentsForReceiver(address receiver) external view returns (uint256[] memory) {
+        return paymentsByReceiver[receiver];
+    }
+
+    function getPaymentsForSender(address sender) external view returns (uint256[] memory) {
+        return paymentsBySender[sender];
+    }
 }
