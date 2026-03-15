@@ -1,3 +1,4 @@
+```markdown
 # Custodex: Conditional Payments Infrastructure
 
 [![Solidity](https://img.shields.io/badge/Solidity-%5E0.8.20-363636.svg?logo=solidity)](https://soliditylang.org/)
@@ -54,9 +55,17 @@ The protocol utilizes a state-driven payment lifecycle to ensure funds are never
      │ 5. Refund (if rejected/exp)  │ 5. Release (if accepted)      │
      │ <────────────────────────────┤──────────────────────────────>│
 
-     💻 Developer Integration
-1. Smart Contract Interface
+```
+
+---
+
+## 💻 Developer Integration
+
+### 1. Smart Contract Interface
+
 To interact with the Custodex protocol at the contract level, utilize the following interface:
+
+```solidity
 interface IConditionalPayments {
     function createPayment(
         address receiver,
@@ -76,8 +85,13 @@ interface IConditionalPayments {
     function getReceiverPayments(address receiver) external view returns (uint256[] memory);
 }
 
-2. Client-Side Quick Start (Ethers.js)
+```
+
+### 2. Client-Side Quick Start (Ethers.js)
+
 Integrating Custodex into a frontend application requires standard contract interaction:
+
+```javascript
 import { ethers } from 'ethers';
 
 // Initialize contract instance
@@ -92,57 +106,64 @@ const tx = await contract.createPayment(
     0 // Uses default protocol deadline (24h)
 );
 await tx.wait();
-See BUILDER_INTEGRATION.md for complete implementation examples.
 
+```
 
-🛡️ Security & Testing
+*See [BUILDER_INTEGRATION.md](https://www.google.com/search?q=docs/BUILDER_INTEGRATION.md) for complete implementation examples.*
+
+---
+
+## 🛡️ Security & Testing
+
 Custodex is built with a security-first approach, utilizing OpenZeppelin standards.
 
-Reentrancy Protection: Implemented on all state-changing and token-transfer functions.
+* **Reentrancy Protection:** Implemented on all state-changing and token-transfer functions.
+* **SafeERC20:** Utilizing safe transfer libraries to handle non-standard ERC20 behaviors.
+* **Strict Access Control:** Resolution functions are cryptographically restricted to assigned participants (Sender, Receiver, or assigned Arbiter).
 
-SafeERC20: Utilizing safe transfer libraries to handle non-standard ERC20 behaviors.
-
-Strict Access Control: Resolution functions are cryptographically restricted to assigned participants (Sender, Receiver, or assigned Arbiter).
-
-Running the Test Suite:
+**Running the Test Suite:**
 The project uses Foundry for comprehensive unit and fuzz testing.
+
+```bash
 # Run all tests
 forge test -vvv
 
 # Generate gas report
 forge test --gas-report
 
-🌐 Deployment Details
-Arc Testnet Configuration
+```
 
-Network RPC: https://testnet.arc.network
+---
 
-Explorer: https://testnet.arcscan.app
+## 🌐 Deployment Details
 
-USDC Faucet: https://faucet.circle.com
+### Arc Testnet Configuration
 
-Deployed Contract: [INSERT_DEPLOYED_ADDRESS_HERE]
+* **Network RPC:** `https://testnet.arc.network`
+* **Explorer:** `https://testnet.arcscan.app`
+* **USDC Faucet:** `https://faucet.circle.com`
+* **Deployed Contract:** `[INSERT_DEPLOYED_ADDRESS_HERE]`
 
-Protocol Parameters
+### Protocol Parameters
 
-Default Expiry: 24 hours
+* **Default Expiry:** 24 hours
+* **Max Extension:** 30 days
+* **Supported Assets:** ERC20 Compatible (Optimized for USDC)
 
-Max Extension: 30 days
+---
 
-Supported Assets: ERC20 Compatible (Optimized for USDC)
+## 🤝 Contributing
 
-
-🤝 Contributing
 Custodex is public infrastructure. We welcome pull requests for protocol enhancements.
 
-Current Roadmap:
+**Current Roadmap:**
 
-[ ] Multi-signature approval matrices
+* [ ] Multi-signature approval matrices
+* [ ] Partial acceptance / Milestoned payments
+* [ ] Protocol-level dispute resolution mechanics
 
-[ ] Partial acceptance / Milestoned payments
+Please ensure all tests pass (`forge test`) before submitting a PR. See [SETUP_GUIDE.md](https://www.google.com/search?q=docs/SETUP_GUIDE.md) for local environment configuration.
 
-[ ] Protocol-level dispute resolution mechanics
+---
 
-Please ensure all tests pass (forge test) before submitting a PR. See SETUP_GUIDE.md for local environment configuration.
-
-Built for the Arc Network developer ecosystem.
+*Built for the Arc Network developer ecosystem.*
