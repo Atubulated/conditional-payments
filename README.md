@@ -51,6 +51,7 @@ sequenceDiagram
         C->>S: Refund funds
     end
     ```
+    
 ---
 
 ## 💻 Developer Integration
