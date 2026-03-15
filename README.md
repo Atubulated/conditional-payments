@@ -50,8 +50,8 @@ sequenceDiagram
         R->>C: rejectPayment()
         C->>S: Refund funds
     end
-    ```
-    
+```
+
 ---
 
 ## 💻 Developer Integration
