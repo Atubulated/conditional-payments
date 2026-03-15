@@ -78,7 +78,7 @@ export default function ActivityList({ className = '' }: { className?: string })
     if (address) { 
       setIsLoading(true); 
       loadFromDatabase(); 
-      const interval = setInterval(loadFromDatabase, 5000); 
+      const interval = setInterval(loadFromDatabase, 15000); 
       return () => clearInterval(interval); 
     } 
   }, [address, loadFromDatabase]);

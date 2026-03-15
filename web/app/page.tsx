@@ -420,7 +420,7 @@ export default function Home() {
   }, [address, fetchPendingPayments]);
 
   useEffect(() => {
-    if (address) { fetchPendingPayments(); const initialDelay = setTimeout(syncNewEscrows, 1500); const interval = setInterval(() => { fetchPendingPayments(); syncNewEscrows(); }, 5000); return () => { clearTimeout(initialDelay); clearInterval(interval); }; }
+    if (address) { fetchPendingPayments(); const initialDelay = setTimeout(syncNewEscrows, 1500); const interval = setInterval(() => { fetchPendingPayments(); syncNewEscrows(); }, 15000); return () => { clearTimeout(initialDelay); clearInterval(interval); }; }
   }, [address, fetchPendingPayments, syncNewEscrows]);
 
   if (!mounted || !isSettled) return (
