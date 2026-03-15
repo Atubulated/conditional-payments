@@ -33,7 +33,7 @@ async function waitForReceiptWithStatus(txHash: string, timeoutMs: number = 6000
   throw new Error('Transaction receipt timeout');
 }
 
-export default function ActivityList({ className = '' }: { className?: string }) {
+export default function ActivityList({ className = '', onActivityUpdate }: { className?: string, onActivityUpdate?: () => void }) {
   const { address } = useAccount();
   const { showToast } = useToast();
   const { writeContractAsync } = useWriteContract();
@@ -89,6 +89,7 @@ export default function ActivityList({ className = '' }: { className?: string })
       await supabase.from('arbiter_chat').delete().eq('payment_id', id);
       showToast('success', 'Escrow Declined', 'The sender has been notified.');
       loadFromDatabase();
+      if (onActivityUpdate) onActivityUpdate();
     } catch (e) {
       showToast('error', 'Failed to decline');
     }
@@ -151,6 +152,7 @@ export default function ActivityList({ className = '' }: { className?: string })
           await supabase.from('escrow_payments').update(updatePayload).eq('id', id);
 
           loadFromDatabase(); 
+          if (onActivityUpdate) onActivityUpdate();
         }
     } catch (e) { showToast('error', 'Failed'); }
   };

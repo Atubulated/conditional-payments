@@ -537,7 +537,7 @@ export default function Home() {
                 </div>
               ) : (
                 <div className="w-full max-w-2xl">
-                  <ActivityList className="w-full" />
+                  <ActivityList className="w-full" onActivityUpdate={fetchPendingPayments} />
                 </div>
               )}
             </div>

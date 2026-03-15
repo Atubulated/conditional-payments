@@ -144,7 +144,7 @@ export default function EscrowForm({ onPaymentCreated }: { onPaymentCreated?: ()
             setTimeout(() => {
                 if (onPaymentCreated) onPaymentCreated();
                 resetForm();
-            }, 2500);
+            }, 5000);
         } else {
             showToast('error', 'Transaction failed', `https://testnet.arcscan.app/tx/${hash}`, 'View Explorer');
             setTxStatus('idle');
