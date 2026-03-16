@@ -2,7 +2,7 @@
 
 import ArbiterChat from './ArbiterChat';
 import { createPortal } from 'react-dom';
-import { X, MessageSquare, Shield, Clock, AlertTriangle, CheckCircle, XCircle, ArrowRight, Undo2, Banknote, Loader2, Snowflake, Flame, Info } from 'lucide-react';
+import { X, MessageSquare, Shield, Clock, AlertTriangle, CheckCircle, XCircle, ArrowRight, Undo2, Banknote, Loader2, Snowflake, Flame, Info, Copy, ExternalLink, Check } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAccount, useWriteContract } from 'wagmi';
 import { CONTRACT_ADDRESS, CONTRACT_ABI, USDC_ADDRESS, ERC20_ABI } from './constants';
@@ -47,11 +47,20 @@ export default function ActivityList({ className = '', onActivityUpdate }: { cla
   const [resolveAction, setResolveAction] = useState<any | null>(null);
   const [resolveConfirmText, setResolveConfirmText] = useState('');
   const [now, setNow] = useState(Math.floor(Date.now() / 1000));
+  
+  const [copiedHash, setCopiedHash] = useState<string | null>(null);
 
   useEffect(() => {
     const interval = setInterval(() => setNow(Math.floor(Date.now() / 1000)), 1000);
     return () => clearInterval(interval);
   }, []);
+
+  const formatTimeRemaining = (targetTime: number) => {
+    const remaining = targetTime - now;
+    if (remaining <= 0) return 'Expired';
+    const hrs = Math.floor(remaining / 3600); const mins = Math.floor((remaining % 3600) / 60);
+    return hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m ${remaining % 60}s`;
+  };
 
   const loadFromDatabase = useCallback(async () => {
     if (!address) return;
@@ -68,7 +77,7 @@ export default function ActivityList({ className = '', onActivityUpdate }: { cla
           id: d.id, sender: d.sender, receiver: d.receiver, arbiter: d.arbiter,
           amount: d.amount, bondAmount: d.bond_amount, deadline: d.deadline, 
           availableAt: d.available_at, pType: d.p_type, status: d.status, isDeclined: d.is_declined,
-          resolvedTo: d.resolved_to
+          resolvedTo: d.resolved_to, lastTxHash: d.last_tx_hash
         })));
       }
     } catch (e) {} finally { setIsLoading(false); }
@@ -96,15 +105,14 @@ export default function ActivityList({ className = '', onActivityUpdate }: { cla
     setDeclineAction(null);
   };
 
-  const truncateAddress = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-4)}`;
-  
-  const formatTimeRemaining = (targetTime: number) => {
-    const remaining = targetTime - now;
-    if (remaining <= 0) return 'Expired';
-    const hrs = Math.floor(remaining / 3600); const mins = Math.floor((remaining % 3600) / 60);
-    return hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m ${remaining % 60}s`;
+  const handleCopyHash = (hash: string) => {
+    navigator.clipboard.writeText(hash);
+    setCopiedHash(hash);
+    setTimeout(() => setCopiedHash(null), 2000);
   };
 
+  const truncateAddress = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+  
   const executeAction = async (action: string, id: string, pType?: number, amount?: string, targetAddress?: string) => {
     try {
         let fnName = ''; let args: any[] = [BigInt(id)];
@@ -193,16 +201,16 @@ export default function ActivityList({ className = '', onActivityUpdate }: { cla
     const isCoolingOff = now < Number(p.availableAt);
     
     if (p.status === 2 && isArbiter) return (
-      <div className="flex gap-2">
+      <div className="flex gap-2 mt-2">
         <button onClick={() => setResolveAction({ id: p.id, action: 'resolve_sender', target: p.sender, label: 'Sender', pType: p.pType })} className="px-3 py-2 bg-white dark:bg-slate-800 border border-rose-300 dark:border-rose-500/50 text-rose-600 dark:text-rose-400 text-xs font-bold rounded-xl hover:bg-rose-50 dark:hover:bg-rose-500/10">Refund Sender</button>
         <button onClick={() => setResolveAction({ id: p.id, action: 'resolve_receiver', target: p.receiver, label: 'Receiver', pType: p.pType })} className="px-3 py-2 bg-white dark:bg-slate-800 border border-emerald-300 dark:border-emerald-500/50 text-emerald-600 dark:text-emerald-400 text-xs font-bold rounded-xl hover:bg-emerald-50 dark:hover:bg-emerald-500/10">Pay Receiver</button>
       </div>
     );
     
-    if (isExpired && isSender && p.status !== 4 && p.status !== 3 && p.status !== 2) return <button onClick={() => executeAction('reclaim', p.id)} className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl flex items-center gap-2 shadow-lg animate-pulse-slow"><Undo2 size={14}/> Reclaim Funds</button>;
+    if (isExpired && isSender && p.status !== 4 && p.status !== 3 && p.status !== 2) return <button onClick={() => executeAction('reclaim', p.id)} className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl flex items-center gap-2 shadow-lg animate-pulse-slow mt-2"><Undo2 size={14}/> Reclaim Funds</button>;
     
     if (p.status === 0 && isReceiver && !isExpired) return (
-      <div className="flex gap-2">
+      <div className="flex gap-2 mt-2">
         <button onClick={() => setDeclineAction(p)} className="px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:text-rose-600 dark:hover:text-rose-400 text-xs font-bold rounded-xl">Decline</button>
         {p.pType === 1 ? (!isCoolingOff && <button onClick={() => executeAction('claim', p.id, p.pType)} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-md">Claim</button>)
         : <button onClick={() => executeAction('accept', p.id, p.pType, p.bondAmount)} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-md">{p.pType === 3 ? 'Post Bond' : 'Accept'}</button>}
@@ -211,12 +219,12 @@ export default function ActivityList({ className = '', onActivityUpdate }: { cla
     
     if (p.status === 1 && !isExpired) {
       if (isSender) return (
-        <div className="flex gap-2">
+        <div className="flex gap-2 mt-2">
           <button onClick={() => executeAction('release', p.id)} className="px-3 py-2 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-800 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/30 text-xs font-bold rounded-xl hover:bg-emerald-100 dark:hover:bg-emerald-500/20">Release</button>
           <button onClick={() => setDisputeAction(p)} className="px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-rose-600 dark:text-rose-400 text-xs font-bold rounded-xl hover:bg-rose-50 dark:hover:bg-rose-500/10">Dispute</button>
         </div>
       );
-      if (isReceiver && p.pType !== 3) return <button onClick={() => setDisputeAction(p)} className="px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-rose-600 dark:text-rose-400 text-xs font-bold rounded-xl hover:bg-rose-50 dark:hover:bg-rose-500/10">Dispute</button>;
+      if (isReceiver && p.pType !== 3) return <button onClick={() => setDisputeAction(p)} className="px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-rose-600 dark:text-rose-400 text-xs font-bold rounded-xl hover:bg-rose-50 dark:hover:bg-rose-500/10 mt-2">Dispute</button>;
     }
     return null;
   };
@@ -243,12 +251,12 @@ export default function ActivityList({ className = '', onActivityUpdate }: { cla
           const isArbiter = address?.toLowerCase() === p.arbiter.toLowerCase();
           const { text: statusText, color: statusColor, icon: StatusIcon } = getStatusDisplay(p, isSender, isReceiver);
           const isExpired = now > Number(p.deadline) && Number(p.deadline) !== 0;
+          const timeLeftString = formatTimeRemaining(Number(p.deadline));
           
           let showWarning = false;
           let warningText = "";
           let warningIconColor = "text-indigo-500 dark:text-indigo-400";
 
-          // Warning Logic - strips warnings from declined, completed, or slashed escrows
           if (p.deadline !== "0" && !p.isDeclined && p.status !== 3 && p.status !== 4 && p.status !== 2) {
               if (isExpired && isSender && (p.status === 0 || p.status === 1)) {
                   showWarning = true;
@@ -256,7 +264,9 @@ export default function ActivityList({ className = '', onActivityUpdate }: { cla
                   warningIconColor = "text-amber-500 dark:text-amber-400";
               } else if (!isExpired && (p.status === 0 || p.status === 1)) {
                   showWarning = true;
-                  warningText = isSender ? "Deadline Policy: If the receiver does not claim the funds by the deadline, you will be granted the authority to reclaim the full amount back to your wallet." : "Action Required: This payment has a hard deadline. Ensure you claim the funds before expiry, or the sender will be able to withdraw the funds back.";
+                  warningText = isSender 
+                    ? `Deadline Policy: If the receiver does not claim the funds within ${timeLeftString}, you will be granted the authority to reclaim the full amount back to your wallet.` 
+                    : `Action Required: This payment expires in ${timeLeftString}. Ensure you claim the funds before the deadline, or the sender will be able to withdraw the funds back.`;
                   warningIconColor = "text-indigo-500 dark:text-indigo-400";
               }
           }
@@ -269,37 +279,57 @@ export default function ActivityList({ className = '', onActivityUpdate }: { cla
           else if (isReturned) { destAddress = p.sender; destLabel = 'Refunded To'; FlowIcon = Undo2; flowColor = 'text-amber-400 dark:text-amber-500/50'; destLabelColor = 'text-amber-600 dark:text-amber-400'; }
 
           return (
-            <div key={p.id} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-5 flex flex-col gap-4 shadow-sm dark:shadow-[0_8px_30px_rgba(0,0,0,0.4)]">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                <div className="space-y-3 w-full sm:w-auto">
-                  <div className={`px-2.5 py-1 w-fit rounded-md border text-[10px] font-bold uppercase flex items-center gap-1.5 ${statusColor}`}><StatusIcon size={12} /> {statusText}</div>
-                  <div className="flex items-center flex-wrap gap-2 text-[11px] font-mono text-slate-500 dark:text-slate-400">
-                    <div className="flex items-center gap-1.5"><span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase font-sans">From</span><span className={isSender ? 'text-indigo-600 dark:text-indigo-400 font-bold' : ''}>{truncateAddress(p.sender)}</span></div>
-                    <FlowIcon size={12} className={flowColor} />
-                    <div className="flex items-center gap-1.5"><span className={`text-[9px] font-bold uppercase font-sans ${destLabelColor}`}>{destLabel}</span><span className={address?.toLowerCase() === destAddress.toLowerCase() ? 'text-indigo-600 dark:text-indigo-400 font-bold' : ''}>{destAddress === '0x0000...0000' ? destAddress : truncateAddress(destAddress)}</span></div>
-                    {p.pType === 2 && <><span className="text-slate-300 dark:text-slate-700 hidden sm:inline">•</span><div className="flex items-center gap-1.5 mt-1 sm:mt-0"><span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase font-sans">Arbiter</span><span className={isArbiter ? 'text-amber-600 dark:text-amber-400 font-bold' : ''}>{truncateAddress(p.arbiter)}</span></div></>}
+            <div key={p.id} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl flex flex-col shadow-sm dark:shadow-[0_8px_30px_rgba(0,0,0,0.4)] overflow-hidden">
+              <div className="p-4 sm:p-5 flex flex-col gap-4">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                  <div className="space-y-3 w-full sm:w-auto">
+                    <div className={`px-2.5 py-1 w-fit rounded-md border text-[10px] font-bold uppercase flex items-center gap-1.5 ${statusColor}`}><StatusIcon size={12} /> {statusText}</div>
+                    <div className="flex items-center flex-wrap gap-2 text-[11px] font-mono text-slate-500 dark:text-slate-400">
+                      <div className="flex items-center gap-1.5"><span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase font-sans">From</span><span className={isSender ? 'text-indigo-600 dark:text-indigo-400 font-bold' : ''}>{truncateAddress(p.sender)}</span></div>
+                      <FlowIcon size={12} className={flowColor} />
+                      <div className="flex items-center gap-1.5"><span className={`text-[9px] font-bold uppercase font-sans ${destLabelColor}`}>{destLabel}</span><span className={address?.toLowerCase() === destAddress.toLowerCase() ? 'text-indigo-600 dark:text-indigo-400 font-bold' : ''}>{destAddress === '0x0000...0000' ? destAddress : truncateAddress(destAddress)}</span></div>
+                      {p.pType === 2 && <><span className="text-slate-300 dark:text-slate-700 hidden sm:inline">•</span><div className="flex items-center gap-1.5 mt-1 sm:mt-0"><span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase font-sans">Arbiter</span><span className={isArbiter ? 'text-amber-600 dark:text-amber-400 font-bold' : ''}>{truncateAddress(p.arbiter)}</span></div></>}
+                    </div>
+                  </div>
+                  
+                  {/* AMOUNT & TXN HASH RIGHT COLUMN */}
+                  <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto gap-3 pt-3 sm:pt-0">
+                    <div className="text-right flex flex-col items-end">
+                      <div className="font-bold text-slate-900 dark:text-white text-base">{(Number(p.amount) / 1e6).toFixed(2)} USDC</div>
+                      {p.pType === 3 && <div className="text-[10px] text-slate-600 dark:text-slate-400 font-semibold uppercase mt-0.5">Bond: {(Number(p.bondAmount) / 1e6).toFixed(2)}</div>}
+                      
+                      {p.lastTxHash && (
+                        <div className="flex items-center gap-1.5 mt-1 opacity-80 hover:opacity-100 transition-opacity">
+                          <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Txn Hash</span>
+                          <div className="flex items-center gap-1 bg-slate-50 dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-100 dark:border-slate-700">
+                            <a href={`https://testnet.arcscan.app/tx/${p.lastTxHash}`} target="_blank" rel="noopener noreferrer" className="font-mono font-medium text-[9px] text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1">
+                              {truncateAddress(p.lastTxHash)} <ExternalLink size={8} />
+                            </a>
+                            <div className="w-px h-3 bg-slate-200 dark:bg-slate-700 mx-0.5"></div>
+                            <button onClick={() => handleCopyHash(p.lastTxHash as string)} className="text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors" title="Copy Hash">
+                              {copiedHash === p.lastTxHash ? <Check size={10} className="text-emerald-500" /> : <Copy size={10} />}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="flex gap-2">
+                      {getActionButtons(p, isSender, isReceiver, isArbiter)}
+                      {p.pType === 2 && p.status === 2 && <button onClick={() => setActiveChatPayment(p)} className="px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-700 text-xs font-bold rounded-xl shadow-md flex items-center gap-1.5 mt-2"><MessageSquare size={14} /> View Chat</button>}
+                      {verdictPayments.has(String(p.id)) && (p.status === 3 || p.status === 4) && <button onClick={() => setActiveChatPayment(p)} className="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-bold rounded-xl shadow-sm flex items-center gap-1.5 mt-2"><MessageSquare size={14} /> Transcript</button>}
+                    </div>
                   </div>
                 </div>
-                <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto gap-3 pt-3 sm:pt-0">
-                  <div className="text-right">
-                    <div className="font-bold text-slate-900 dark:text-white text-lg sm:text-base">{(Number(p.amount) / 1e6).toFixed(2)} USDC</div>
-                    {p.pType === 3 && <div className="text-[10px] text-slate-600 dark:text-slate-400 font-semibold uppercase mt-0.5">Bond: {(Number(p.bondAmount) / 1e6).toFixed(2)}</div>}
+                {showWarning && (
+                  <div className="flex items-start gap-2.5 p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 mt-1">
+                    <Info size={14} className={`${warningIconColor} mt-0.5 shrink-0`} />
+                    <p className="text-[10px] sm:text-[11px] font-medium text-slate-600 dark:text-slate-400 leading-normal">
+                      {warningText}
+                    </p>
                   </div>
-                  <div className="flex gap-2">
-                    {getActionButtons(p, isSender, isReceiver, isArbiter)}
-                    {p.pType === 2 && p.status === 2 && <button onClick={() => setActiveChatPayment(p)} className="px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-700 text-xs font-bold rounded-xl shadow-md flex items-center gap-1.5"><MessageSquare size={14} /> View Chat</button>}
-                    {verdictPayments.has(String(p.id)) && (p.status === 3 || p.status === 4) && <button onClick={() => setActiveChatPayment(p)} className="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-bold rounded-xl shadow-sm flex items-center gap-1.5"><MessageSquare size={14} /> Transcript</button>}
-                  </div>
-                </div>
+                )}
               </div>
-              {showWarning && (
-                <div className="flex items-start gap-2.5 p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 mt-1">
-                  <Info size={14} className={`${warningIconColor} mt-0.5 shrink-0`} />
-                  <p className="text-[10px] sm:text-[11px] font-medium text-slate-600 dark:text-slate-400 leading-normal">
-                    {warningText}
-                  </p>
-                </div>
-              )}
             </div>
           );
         })}

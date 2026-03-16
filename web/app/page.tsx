@@ -45,13 +45,20 @@ const Header = ({ address, hasWallet, notifications = [], inbox = [], usdcBalanc
   
   const [readMessages, setReadMessages] = useState<Set<string>>(new Set());
   const [expandedMsg, setExpandedMsg] = useState<string | null>(null);
-  const [copiedHash, setCopiedHash] = useState<string | null>(null); // For the copy button
+  const [copiedHash, setCopiedHash] = useState<string | null>(null); 
 
   const [now, setNow] = useState(Math.floor(Date.now() / 1000));
   useEffect(() => {
     const interval = setInterval(() => setNow(Math.floor(Date.now() / 1000)), 1000);
     return () => clearInterval(interval);
   }, []);
+
+  const formatTimeRemaining = (targetTime: number) => {
+    const remaining = targetTime - now;
+    if (remaining <= 0) return 'Expired';
+    const hrs = Math.floor(remaining / 3600); const mins = Math.floor((remaining % 3600) / 60);
+    return hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m ${remaining % 60}s`;
+  };
 
   useEffect(() => {
     if (address) {
@@ -85,7 +92,7 @@ const Header = ({ address, hasWallet, notifications = [], inbox = [], usdcBalanc
   };
 
   const handleCopyHash = (e: React.MouseEvent, hash: string) => {
-    e.stopPropagation(); // Prevents the accordion from closing when clicking copy
+    e.stopPropagation();
     navigator.clipboard.writeText(hash);
     setCopiedHash(hash);
     setTimeout(() => setCopiedHash(null), 2000);
@@ -136,13 +143,13 @@ const Header = ({ address, hasWallet, notifications = [], inbox = [], usdcBalanc
                   {visibleNotifications.length > 0 && <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white dark:ring-slate-900" />}
                 </button>
 
-                {/* INBOX DROPDOWN (Rich Data Formatting & TX Hash with Copy) */}
+                {/* INBOX DROPDOWN */}
                 {isInboxOpen && (
                   <div className="fixed sm:absolute top-[70px] sm:top-auto sm:mt-12 right-2 sm:right-0 left-2 sm:left-auto sm:w-[360px] max-w-[360px] rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl z-50">
                     <div className="p-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/50 flex justify-between items-center">
                       <h3 className="font-bold text-slate-900 dark:text-slate-100 text-xs tracking-wider uppercase">Inbox</h3>
                       <div className="flex gap-3 items-center">
-                        {inbox.length > 0 && <button type="button" onClick={markAllAsRead} className="text-[9px] font-bold text-indigo-600 dark:text-indigo-400 uppercase hover:underline">Mark Read</button>}
+                        {inbox.length > 0 && <button type="button" onClick={markAllAsRead} className="text-[9px] font-bold text-indigo-600 dark:text-indigo-400 uppercase hover:underline">Mark All As Read</button>}
                         <button type="button" onClick={() => setIsInboxOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"><X size={14} /></button>
                       </div>
                     </div>
@@ -157,8 +164,8 @@ const Header = ({ address, hasWallet, notifications = [], inbox = [], usdcBalanc
                             const formatAmount = (Number(msg.amount) / 1e6).toFixed(2);
                             const isMeSender = address && msg.sender.toLowerCase() === address.toLowerCase();
                             const isMeReceiver = address && msg.receiver.toLowerCase() === address.toLowerCase();
-                            const senderText = isMeSender ? 'you' : truncateAddress(msg.sender);
-                            const receiverText = isMeReceiver ? 'you' : truncateAddress(msg.receiver);
+                            const senderAddress = truncateAddress(msg.sender);
+                            const receiverAddress = truncateAddress(msg.receiver);
                             const isSlashed = msg.pType === 3 && msg.status === 3 && msg.resolvedTo === "0x0000000000000000000000000000000000000000";
                             const typeStr = getEscrowTypeName(msg.pType);
 
@@ -166,29 +173,37 @@ const Header = ({ address, hasWallet, notifications = [], inbox = [], usdcBalanc
 
                             if (msg.isDeclined) { 
                               title = 'Escrow Declined'; 
-                              desc = `${formatAmount} USDC returned to ${senderText}.`; 
                               Icon = XCircle; color = 'text-rose-500'; 
+                              desc = isMeSender 
+                                ? `The receiver (${receiverAddress}) actively declined your escrow offer. The ${formatAmount} USDC has been returned to your wallet.`
+                                : `You successfully declined the escrow offer from ${senderAddress}. The ${formatAmount} USDC was returned to them.`;
                             } else if (msg.status === 4) { 
                               title = 'Escrow Reclaimed'; 
-                              desc = `${formatAmount} USDC reclaimed by ${senderText}.`; 
                               Icon = Undo2; color = 'text-amber-500'; 
+                              desc = isMeSender
+                                ? `You successfully reclaimed your ${formatAmount} USDC from ${receiverAddress} after the deadline expired without action.`
+                                : `The sender (${senderAddress}) reclaimed the ${formatAmount} USDC because the deadline window passed without any action from your end.`;
                             } else if (isSlashed) { 
                               title = 'Bonded Payment Slashed'; 
-                              desc = `${formatAmount} USDC permanently burned.`; 
                               Icon = Flame; color = 'text-rose-500'; 
+                              desc = `A dispute resolution resulted in the ${formatAmount} USDC payment and the posted bond being permanently burned.`;
                             } else if (msg.status === 3) { 
                               title = `${typeStr} Escrow Completed`; 
-                              desc = `${formatAmount} USDC released to ${receiverText}.`; 
                               color = 'text-emerald-600'; 
+                              desc = isMeReceiver
+                                ? `Success! The ${formatAmount} USDC escrow has been completed and the funds are now available in your wallet.`
+                                : `The ${formatAmount} USDC escrow was completed successfully and the funds have been released to the receiver (${receiverAddress}).`;
                             } else if (msg.status === 0 && (now > Number(msg.deadline) && Number(msg.deadline) !== 0)) { 
                               title = 'Offer Expired'; 
-                              desc = 'The deadline for this escrow has passed.'; 
                               Icon = Clock; color = 'text-slate-500'; 
+                              desc = isMeSender
+                                ? `The deadline for your ${formatAmount} USDC escrow has passed. You can now reclaim the funds from your Activity dashboard.`
+                                : `The deadline for the ${formatAmount} USDC escrow from ${senderAddress} has expired.`;
                             }
 
                             return (
-                              <div key={notifId} className={`p-4 transition-colors ${isRead ? 'opacity-80 hover:bg-slate-50 dark:hover:bg-slate-800/50' : 'bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800'}`}>
-                                <div className="flex gap-3 items-start cursor-pointer" onClick={() => toggleMsgExpand(msg.id, msg.status)}>
+                              <div key={notifId} className={`p-4 transition-colors cursor-pointer ${isRead ? 'opacity-80 hover:bg-slate-50 dark:hover:bg-slate-800/50' : 'bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800'}`} onClick={() => toggleMsgExpand(msg.id, msg.status)}>
+                                <div className="flex gap-3 items-start">
                                   <div className="w-2 flex-shrink-0 flex justify-center pt-1.5">{!isRead && <div className="w-2 h-2 rounded-full bg-indigo-500" />}</div>
                                   <Icon size={16} className={`${color} shrink-0 mt-0.5`} />
                                   <div className="flex-1 min-w-0">
@@ -196,26 +211,15 @@ const Header = ({ address, hasWallet, notifications = [], inbox = [], usdcBalanc
                                       <p className={`text-xs font-bold ${isRead ? 'text-slate-700 dark:text-slate-300' : 'text-slate-900 dark:text-slate-100'}`}>{title}</p>
                                       <ChevronRight size={14} className={`text-slate-400 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
                                     </div>
-                                    <p className="text-[11px] text-slate-500 dark:text-slate-400">{desc}</p>
-                                  </div>
-                                </div>
-                                {isExpanded && (
-                                  <div className="mt-3 ml-5 pl-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-between text-[11px] items-center animate-fade-in">
-                                    <span className="text-slate-500 font-semibold">Transaction Hash:</span>
-                                    {msg.lastTxHash ? (
-                                      <div className="flex items-center gap-2">
-                                        <button onClick={(e) => handleCopyHash(e, msg.lastTxHash)} className="text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors" title="Copy Hash">
-                                          {copiedHash === msg.lastTxHash ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
-                                        </button>
-                                        <a href={`https://testnet.arcscan.app/tx/${msg.lastTxHash}`} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="font-mono font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1">
-                                          {truncateAddress(msg.lastTxHash)} <ExternalLink size={10} />
-                                        </a>
-                                      </div>
+                                    {!isExpanded ? (
+                                      <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{desc}</p>
                                     ) : (
-                                      <span className="font-mono text-slate-400 dark:text-slate-500 italic">Legacy (Not Recorded)</span>
+                                      <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-800 animate-fade-in">
+                                        <p className="text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">{desc}</p>
+                                      </div>
                                     )}
                                   </div>
-                                )}
+                                </div>
                               </div>
                             );
                           })}
@@ -225,7 +229,7 @@ const Header = ({ address, hasWallet, notifications = [], inbox = [], usdcBalanc
                   </div>
                 )}
 
-                {/* ACTIONS DROPDOWN */}
+                {/* ACTIONS DROPDOWN (Now with dynamic timers!) */}
                 {isBellOpen && (
                   <div className="fixed sm:absolute top-[70px] sm:top-auto sm:mt-12 right-2 sm:right-0 left-2 sm:left-auto sm:w-[340px] max-w-[340px] rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl z-50">
                     <div className="p-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/50 flex justify-between items-center">
@@ -238,7 +242,9 @@ const Header = ({ address, hasWallet, notifications = [], inbox = [], usdcBalanc
                     <div className="max-h-[350px] overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/50">
                       {visibleNotifications.length === 0 ? <div className="p-6 text-center text-slate-500 text-xs">No pending actions</div> : visibleNotifications.map((n: any) => {
                         const isSender = address && n.sender.toLowerCase() === address.toLowerCase();
+                        const isReceiver = address && n.receiver.toLowerCase() === address.toLowerCase();
                         const isExpired = now > Number(n.deadline) && Number(n.deadline) !== 0;
+                        const isCoolingOff = now < Number(n.availableAt);
                         
                         let badgeText = "Action Required";
                         let badgeColor = "bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-100 dark:border-indigo-500/20";
@@ -246,8 +252,18 @@ const Header = ({ address, hasWallet, notifications = [], inbox = [], usdcBalanc
                         if (isExpired && isSender) {
                           badgeText = "Ready to Reclaim";
                           badgeColor = "bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-100 dark:border-amber-500/20";
-                        } else if (n.status === 0 && isSender) {
-                          badgeText = "Awaiting Receiver";
+                        } else if (n.status === 0) {
+                          if (isSender) {
+                            badgeText = "Awaiting Receiver";
+                          } else if (isReceiver) {
+                            if (n.pType === 1 && isCoolingOff) {
+                              badgeText = `Unlocks in ${formatTimeRemaining(Number(n.availableAt))}`;
+                              badgeColor = "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700";
+                            } else {
+                              badgeText = `Expires in ${formatTimeRemaining(Number(n.deadline))}`;
+                              badgeColor = "bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-100 dark:border-rose-500/20";
+                            }
+                          }
                         } else if (n.status === 1) {
                           badgeText = "In Progress";
                           badgeColor = "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-100 dark:border-emerald-500/20";
