@@ -6,12 +6,13 @@ import { formatUnits } from 'viem';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import EscrowForm from './EscrowForm';
 import ActivityList from './ActivityList';
+import Guide from './Guide';
 import ThemeToggle from './ThemeToggle';
 import { USDC_ADDRESS, ERC20_ABI, CONTRACT_ADDRESS, CONTRACT_ABI } from './constants';
 import { useToast } from './Toast';
 import { supabase } from './supabaseClient';
 import {
-  ShieldCheck, Bell, Activity as ActivityIcon, CheckCircle2, Clock, PlusCircle, X, AlertTriangle, Snowflake, Mail, CheckCircle, XCircle, ChevronRight, ChevronsRight, ChevronsDown, Lock, Code2, MessageSquareQuote, Loader2, Wallet, Flame, ExternalLink, Undo2, Copy, Check
+  ShieldCheck, Bell, Activity as ActivityIcon, CheckCircle2, Clock, PlusCircle, X, AlertTriangle, Snowflake, Mail, CheckCircle, XCircle, ChevronRight, ChevronsRight, ChevronsDown, Lock, Code2, MessageSquareQuote, Loader2, Wallet, Flame, ExternalLink, Undo2, Copy, Check, BookOpen
 } from 'lucide-react';
 
 /* -------------------------------------------------------------------------- */
@@ -229,7 +230,7 @@ const Header = ({ address, hasWallet, notifications = [], inbox = [], usdcBalanc
                   </div>
                 )}
 
-                {/* ACTIONS DROPDOWN (Now with dynamic timers!) */}
+                {/* ACTIONS DROPDOWN */}
                 {isBellOpen && (
                   <div className="fixed sm:absolute top-[70px] sm:top-auto sm:mt-12 right-2 sm:right-0 left-2 sm:left-auto sm:w-[340px] max-w-[340px] rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl z-50">
                     <div className="p-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/50 flex justify-between items-center">
@@ -541,19 +542,27 @@ export default function Home() {
           </div>
         ) : (
           <div className="animate-fade-in w-full flex flex-col items-center gap-6">
-            <div className="flex justify-center p-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-sm w-full max-w-md">
+            <div className="flex justify-center p-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-sm w-full max-w-lg">
               <TabButton active={activeTab === 'create'} onClick={() => setActiveTab('create')} icon={PlusCircle} label="New Escrow" />
               <TabButton active={activeTab === 'activity'} onClick={() => setActiveTab('activity')} icon={ActivityIcon} label="Activity" />
+              <TabButton active={activeTab === 'guide'} onClick={() => setActiveTab('guide')} icon={BookOpen} label="Guide" />
             </div>
             
             <div className="w-full flex justify-center min-h-[400px]">
-              {activeTab === 'create' ? (
-                <div className="w-full max-w-md bg-white dark:bg-[#0B1120] border border-slate-200 dark:border-slate-800/80 rounded-2xl p-4 sm:p-6 shadow-[0_8px_30px_rgba(0,0,0,0.06)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.5)] dark:ring-1 dark:ring-white/5">
+              {/* THE FIX: Changed max-w-md to max-w-lg here to match the tab bar width */}
+              {activeTab === 'create' && (
+                <div className="w-full max-w-lg bg-white dark:bg-[#0B1120] border border-slate-200 dark:border-slate-800/80 rounded-2xl p-4 sm:p-6 shadow-[0_8px_30px_rgba(0,0,0,0.06)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.5)] dark:ring-1 dark:ring-white/5">
                   <EscrowForm onPaymentCreated={() => { setActiveTab('activity'); setTimeout(() => fetchPendingPayments(), 500); }} />
                 </div>
-              ) : (
+              )}
+              {activeTab === 'activity' && (
                 <div className="w-full max-w-2xl">
                   <ActivityList className="w-full" onActivityUpdate={fetchPendingPayments} />
+                </div>
+              )}
+              {activeTab === 'guide' && (
+                <div className="w-full max-w-3xl">
+                  <Guide />
                 </div>
               )}
             </div>
