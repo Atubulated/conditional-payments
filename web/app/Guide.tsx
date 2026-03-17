@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Clock, ShieldAlert, Flame, CheckCircle2, BookOpen, Lock, ArrowRight, ShieldCheck, X, Award, Info, BookText } from 'lucide-react';
-import { useToast } from './Toast';
+import { useAccount } from 'wagmi';
+import { supabase } from './supabaseClient';
 
 const GUIDE_MODULES = [
   {
@@ -76,33 +77,79 @@ const GUIDE_MODULES = [
 ];
 
 export default function Guide() {
-  const { showToast } = useToast();
+  const { address } = useAccount();
   const [readGuides, setReadGuides] = useState<Set<number>>(new Set());
   const [activeModal, setActiveModal] = useState<number | null>(null);
-  const [claimed, setClaimed] = useState(false);
+
+  // Fetch user progress on load
+  useEffect(() => {
+    if (address) {
+      supabase.from('user_points')
+        .select('read_guides')
+        .eq('wallet_address', address.toLowerCase())
+        .single()
+        .then(({ data }) => {
+          if (data?.read_guides) {
+            setReadGuides(new Set(data.read_guides));
+          }
+        });
+    }
+  }, [address]);
+
+  // We use "99" in the database array as a secret flag to know if they've claimed the XP
+  const claimed = readGuides.has(99);
+  const validGuidesCount = Array.from(readGuides).filter(id => id !== 99).length;
 
   const handleOpenModal = (id: number) => {
     setActiveModal(id);
   };
 
-  // THE FIX: Clicking the X merely closes the modal without granting progress.
   const handleCloseModal = () => {
     setActiveModal(null);
   };
 
-  // THE FIX: Explicitly confirming grants the progress point.
-  const handleUnderstand = () => {
+  const handleUnderstand = async () => {
     if (activeModal !== null) {
-      setReadGuides(prev => new Set(prev).add(activeModal));
+      const newSet = new Set(readGuides).add(activeModal);
+      setReadGuides(newSet);
+      
+      // Save to Supabase
+      if (address) {
+        await supabase.from('user_points').upsert({
+          wallet_address: address.toLowerCase(),
+          read_guides: Array.from(newSet)
+        });
+      }
     }
     setActiveModal(null);
   };
 
-  const handleClaimXP = () => {
-    if (readGuides.size < 3) return;
-    setClaimed(true);
-    showToast('success', '50 XP Claimed!', 'Your knowledge has been verified.');
-    // TODO: Hook this up to Supabase user_points table later
+  const handleClaimXP = async () => {
+    if (validGuidesCount < 3 || claimed) return;
+    
+    // Add the "99" flag to mark it as claimed in the UI immediately
+    const newSet = new Set(readGuides).add(99);
+    setReadGuides(newSet);
+
+    if (address) {
+      // 1. Get their current XP
+      const { data } = await supabase.from('user_points')
+        .select('xp')
+        .eq('wallet_address', address.toLowerCase())
+        .single();
+      
+      const currentXP = data?.xp || 0;
+      
+      // 2. Add 50 XP and save the claim flag (99)
+      await supabase.from('user_points').upsert({
+        wallet_address: address.toLowerCase(),
+        xp: currentXP + 50,
+        read_guides: Array.from(newSet)
+      });
+
+      // 3. Tell the Header component to refresh its XP counter instantly
+      window.dispatchEvent(new Event('xp-updated'));
+    }
   };
 
   const activeModuleData = GUIDE_MODULES.find(m => m.id === activeModal);
@@ -170,19 +217,19 @@ export default function Guide() {
           <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700">
             <Info size={16} className="text-slate-500" />
             <span className="text-xs font-medium text-slate-600 dark:text-slate-300">
-              Read all 3 modules to unlock 50 XP ({readGuides.size}/3 completed)
+              Read all 3 modules to unlock 50 XP ({validGuidesCount}/3 completed)
             </span>
           </div>
         )}
 
         <button 
           onClick={handleClaimXP}
-          disabled={claimed || readGuides.size < 3}
+          disabled={claimed || validGuidesCount < 3}
           className={`flex items-center gap-2 px-8 py-3.5 rounded-xl font-bold text-sm transition-all active:scale-95 ${
             claimed 
               ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 cursor-default' 
-              : readGuides.size === 3 
-                ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/20 cursor-pointer'
+              : validGuidesCount === 3 
+                ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/20 cursor-pointer animate-pulse-slow'
                 : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed'
           }`}
         >

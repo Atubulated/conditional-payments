@@ -257,6 +257,7 @@ export default function ActivityList({ className = '', onActivityUpdate }: { cla
           let warningText = "";
           let warningIconColor = "text-indigo-500 dark:text-indigo-400";
 
+          // THE FIX: Accurate countdown timers for the warning banner based on user role and status
           if (p.deadline !== "0" && !p.isDeclined && p.status !== 3 && p.status !== 4 && p.status !== 2) {
               if (isExpired && isSender && (p.status === 0 || p.status === 1)) {
                   showWarning = true;
@@ -264,9 +265,14 @@ export default function ActivityList({ className = '', onActivityUpdate }: { cla
                   warningIconColor = "text-amber-500 dark:text-amber-400";
               } else if (!isExpired && (p.status === 0 || p.status === 1)) {
                   showWarning = true;
-                  warningText = isSender 
-                    ? `Deadline Policy: If the receiver does not claim the funds within ${timeLeftString}, you will be granted the authority to reclaim the full amount back to your wallet.` 
-                    : `Action Required: This payment expires in ${timeLeftString}. Ensure you claim the funds before the deadline, or the sender will be able to withdraw the funds back.`;
+                  const isCoolingOff = now < Number(p.availableAt);
+                  if (isReceiver && p.pType === 1 && isCoolingOff) {
+                      warningText = `Cooling Off: This payment unlocks in ${formatTimeRemaining(Number(p.availableAt))}.`;
+                  } else if (isReceiver) {
+                      warningText = `Action Required: This payment expires in ${timeLeftString}. Ensure you claim the funds before the deadline, or the sender can reclaim them.`;
+                  } else {
+                      warningText = `Deadline Policy: If the receiver does not claim the funds within ${timeLeftString}, you will be able to reclaim them back to your wallet.`;
+                  }
                   warningIconColor = "text-indigo-500 dark:text-indigo-400";
               }
           }

@@ -1,23 +1,22 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useAccount, useWriteContract, useReadContract } from 'wagmi';
+import { useAccount, useWriteContract, useReadContract, useDisconnect } from 'wagmi';
 import { formatUnits } from 'viem';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import EscrowForm from './EscrowForm';
 import ActivityList from './ActivityList';
 import Guide from './Guide';
+import Profile from './Profile';
+import Quests from './Quests';
+import Leaderboard from './Leaderboard';
 import ThemeToggle from './ThemeToggle';
 import { USDC_ADDRESS, ERC20_ABI, CONTRACT_ADDRESS, CONTRACT_ABI } from './constants';
 import { useToast } from './Toast';
 import { supabase } from './supabaseClient';
 import {
-  ShieldCheck, Bell, Activity as ActivityIcon, CheckCircle2, Clock, PlusCircle, X, AlertTriangle, Snowflake, Mail, CheckCircle, XCircle, ChevronRight, ChevronsRight, ChevronsDown, Lock, Code2, MessageSquareQuote, Loader2, Wallet, Flame, ExternalLink, Undo2, Copy, Check, BookOpen
+  ShieldCheck, Bell, Activity as ActivityIcon, CheckCircle2, Clock, PlusCircle, X, AlertTriangle, Snowflake, Mail, CheckCircle, XCircle, ChevronRight, ChevronsRight, ChevronsDown, Lock, Code2, MessageSquareQuote, Loader2, Wallet, Flame, ExternalLink, Undo2, Copy, Check, BookOpen, Award, UserCircle, ChevronLeft, LogOut, Trophy, UserPlus
 } from 'lucide-react';
-
-/* -------------------------------------------------------------------------- */
-/* TYPES & CONSTANTS                                                          */
-/* -------------------------------------------------------------------------- */
 
 interface Payment {
   id: string; sender: string; receiver: string; arbiter: string; token: string;
@@ -35,18 +34,17 @@ const getEscrowTypeName = (pType: number) => {
   return 'Basic';
 };
 
-/* -------------------------------------------------------------------------- */
-/* HEADER COMPONENT                                                          */
-/* -------------------------------------------------------------------------- */
-
-const Header = ({ address, hasWallet, notifications = [], inbox = [], usdcBalance, onNavigate }: any) => {
+const Header = ({ address, hasWallet, notifications = [], inbox = [], usdcBalance, onNavigate, activeTab, userStats }: any) => {
+  const { disconnect } = useDisconnect();
   const [isBellOpen, setIsBellOpen] = useState(false);
   const [isInboxOpen, setIsInboxOpen] = useState(false);
+  const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+  
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const profileDropdownRef = useRef<HTMLDivElement>(null);
   
   const [readMessages, setReadMessages] = useState<Set<string>>(new Set());
   const [expandedMsg, setExpandedMsg] = useState<string | null>(null);
-  const [copiedHash, setCopiedHash] = useState<string | null>(null); 
 
   const [now, setNow] = useState(Math.floor(Date.now() / 1000));
   useEffect(() => {
@@ -92,16 +90,15 @@ const Header = ({ address, hasWallet, notifications = [], inbox = [], usdcBalanc
     });
   };
 
-  const handleCopyHash = (e: React.MouseEvent, hash: string) => {
-    e.stopPropagation();
-    navigator.clipboard.writeText(hash);
-    setCopiedHash(hash);
-    setTimeout(() => setCopiedHash(null), 2000);
-  };
-
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) { setIsBellOpen(false); setIsInboxOpen(false); }
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) { 
+        setIsBellOpen(false); 
+        setIsInboxOpen(false); 
+      }
+      if (profileDropdownRef.current && !profileDropdownRef.current.contains(event.target as Node)) {
+        setIsProfileDropdownOpen(false);
+      }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -125,21 +122,26 @@ const Header = ({ address, hasWallet, notifications = [], inbox = [], usdcBalanc
 
         <div className="flex items-center gap-1.5 sm:gap-4">
           {!hasWallet && <ThemeToggle />}
+          
           {hasWallet && (
             <>
+              {/* USDC BADGE */}
               <div className="hidden sm:flex bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-3 py-1.5 rounded-lg items-center gap-2 shadow-sm">
                 <span className="text-[9px] font-bold text-indigo-500 uppercase tracking-widest">USDC</span>
                 <span className="text-xs font-mono text-slate-900 dark:text-slate-100 font-semibold">{usdcBalance === 'loading' ? '...' : usdcBalance}</span>
               </div>
+              
               <div className="relative flex gap-1 sm:gap-2" ref={dropdownRef}>
                 <ThemeToggle />
                 
-                <button type="button" onClick={() => { setIsInboxOpen(!isInboxOpen); setIsBellOpen(false); }} className={`p-1.5 sm:p-2 rounded-lg transition-all relative border ${isInboxOpen ? 'bg-indigo-100 dark:bg-indigo-500/20 border-indigo-200 dark:border-indigo-500/30 text-indigo-700 dark:text-indigo-300' : 'bg-indigo-50 dark:bg-slate-900 border-indigo-100 dark:border-slate-800 text-indigo-600 dark:text-indigo-400'}`}>
+                {/* INBOX BUTTON */}
+                <button type="button" onClick={() => { setIsInboxOpen(!isInboxOpen); setIsBellOpen(false); setIsProfileDropdownOpen(false); }} className={`p-1.5 sm:p-2 rounded-lg transition-all relative border ${isInboxOpen ? 'bg-indigo-100 dark:bg-indigo-500/20 border-indigo-200 dark:border-indigo-500/30 text-indigo-700 dark:text-indigo-300' : 'bg-indigo-50 dark:bg-slate-900 border-indigo-100 dark:border-slate-800 text-indigo-600 dark:text-indigo-400'}`}>
                   <Mail className="w-4 h-4" />
                   {unreadCount > 0 && <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white dark:ring-slate-900" />}
                 </button>
 
-                <button type="button" onClick={() => { setIsBellOpen(!isBellOpen); setIsInboxOpen(false); }} className={`p-1.5 sm:p-2 rounded-lg transition-all relative border ${isBellOpen ? 'bg-indigo-100 dark:bg-indigo-500/20 border-indigo-200 dark:border-indigo-500/30 text-indigo-700 dark:text-indigo-300' : 'bg-indigo-50 dark:bg-slate-900 border-indigo-100 dark:border-slate-800 text-indigo-600 dark:text-indigo-400'}`}>
+                {/* NOTIFICATIONS BUTTON */}
+                <button type="button" onClick={() => { setIsBellOpen(!isBellOpen); setIsInboxOpen(false); setIsProfileDropdownOpen(false); }} className={`p-1.5 sm:p-2 rounded-lg transition-all relative border ${isBellOpen ? 'bg-indigo-100 dark:bg-indigo-500/20 border-indigo-200 dark:border-indigo-500/30 text-indigo-700 dark:text-indigo-300' : 'bg-indigo-50 dark:bg-slate-900 border-indigo-100 dark:border-slate-800 text-indigo-600 dark:text-indigo-400'}`}>
                   <Bell className="w-4 h-4" />
                   {visibleNotifications.length > 0 && <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white dark:ring-slate-900" />}
                 </button>
@@ -234,10 +236,7 @@ const Header = ({ address, hasWallet, notifications = [], inbox = [], usdcBalanc
                 {isBellOpen && (
                   <div className="fixed sm:absolute top-[70px] sm:top-auto sm:mt-12 right-2 sm:right-0 left-2 sm:left-auto sm:w-[340px] max-w-[340px] rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl z-50">
                     <div className="p-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/50 flex justify-between items-center">
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-bold text-slate-900 dark:text-slate-100 text-xs tracking-wider uppercase">Actions</h3>
-                        <span className="bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 py-0.5 px-1.5 rounded text-[9px] font-bold">{visibleNotifications.length}</span>
-                      </div>
+                      <h3 className="font-bold text-slate-900 dark:text-slate-100 text-xs tracking-wider uppercase">Actions</h3>
                       <button type="button" onClick={() => setIsBellOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"><X size={14} /></button>
                     </div>
                     <div className="max-h-[350px] overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/50">
@@ -278,7 +277,7 @@ const Header = ({ address, hasWallet, notifications = [], inbox = [], usdcBalanc
                             <span className={`text-[9px] px-1.5 py-0.5 rounded border font-bold uppercase ${badgeColor}`}>{badgeText}</span>
                             <div className="mt-3 flex justify-between items-center text-xs">
                               <span className="font-bold text-slate-900 dark:text-slate-100 font-mono">{(Number(n.amount) / 1e6).toFixed(2)} USDC</span>
-                              <button type="button" onClick={() => { setIsBellOpen(false); onNavigate?.(); }} className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 transition-colors text-white rounded-lg text-[10px] font-bold">Review</button>
+                              <button type="button" onClick={() => { setIsBellOpen(false); onNavigate?.('activity'); }} className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 transition-colors text-white rounded-lg text-[10px] font-bold">Review</button>
                             </div>
                           </div>
                         );
@@ -290,6 +289,7 @@ const Header = ({ address, hasWallet, notifications = [], inbox = [], usdcBalanc
             </>
           )}
 
+          {/* CONNECT BUTTON / PROFILE TAB NAVIGATOR */}
           <div className="flex items-center">
             <ConnectButton.Custom>
               {({ account, chain, openAccountModal, openChainModal, openConnectModal, mounted }) => {
@@ -300,15 +300,43 @@ const Header = ({ address, hasWallet, notifications = [], inbox = [], usdcBalanc
                       if (!connected) return <button onClick={openConnectModal} type="button" className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-1.5 px-3 sm:py-2.5 sm:px-4 rounded-lg transition-all shadow-md active:scale-95 text-[11px] sm:text-xs">Connect Wallet</button>;
                       if (chain.unsupported) return <button onClick={openChainModal} type="button" className="bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-500/20 font-bold py-1.5 px-3 sm:py-2 sm:px-4 rounded-lg text-[11px] sm:text-xs">Wrong network</button>;
                       return (
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5 relative" ref={profileDropdownRef}>
                           <button onClick={openChainModal} type="button" className="hidden md:flex items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 py-1.5 px-2.5 rounded-lg shadow-sm">
                             {chain.hasIcon && <div style={{ background: chain.iconBackground, width: 16, height: 16, borderRadius: 999, overflow: 'hidden', marginRight: 6 }}>{chain.iconUrl && <img alt={chain.name ?? 'Chain icon'} src={chain.iconUrl} style={{ width: 16, height: 16 }} />}</div>}
                             <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">{chain.name}</span>
                           </button>
-                          <button onClick={openAccountModal} type="button" className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-indigo-50 dark:hover:bg-slate-800 py-1.5 px-2 sm:py-2 sm:px-3 rounded-lg shadow-sm flex items-center gap-1.5 group">
-                            <Wallet className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 group-hover:text-indigo-700 dark:group-hover:text-indigo-300" />
-                            <span className="text-[10px] sm:text-xs font-mono text-slate-900 dark:text-slate-100 font-semibold group-hover:text-indigo-700 dark:group-hover:text-indigo-300">{account.displayName}</span>
+                          
+                          {/* PROFILE DROPDOWN BUTTON */}
+                          <button 
+                            onClick={() => { setIsProfileDropdownOpen(!isProfileDropdownOpen); setIsBellOpen(false); setIsInboxOpen(false); }} 
+                            type="button" 
+                            className={`p-1.5 sm:p-2 rounded-lg transition-all border flex items-center gap-1.5 ${isProfileDropdownOpen || activeTab === 'profile' || activeTab === 'quests' || activeTab === 'leaderboard' ? 'bg-indigo-600 text-white shadow-md border-indigo-700' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-indigo-600 dark:text-indigo-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+                          >
+                            <UserCircle className="w-4 h-4 sm:w-5 sm:h-5" />
+                            {userStats?.username && <span className="text-[10px] font-bold hidden sm:block pr-1 truncate max-w-[80px]">{userStats.username}</span>}
                           </button>
+
+                          {/* PROFILE DROPDOWN MENU */}
+                          {isProfileDropdownOpen && (
+                            <div className="absolute top-[120%] right-0 w-48 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl z-50 overflow-hidden animate-fade-in">
+                              <div className="p-2 flex flex-col gap-1">
+                                <button onClick={() => { onNavigate('profile'); setIsProfileDropdownOpen(false); }} className="px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors w-full text-left">
+                                  Profile
+                                </button>
+                                <button onClick={() => { onNavigate('quests'); setIsProfileDropdownOpen(false); }} className="px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors w-full text-left">
+                                  Quests
+                                </button>
+                                <button onClick={() => { onNavigate('leaderboard'); setIsProfileDropdownOpen(false); }} className="px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors w-full text-left">
+                                  Leaderboard
+                                </button>
+                              </div>
+                              <div className="border-t border-slate-100 dark:border-slate-800 p-2">
+                                <button onClick={() => { disconnect(); setIsProfileDropdownOpen(false); }} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg transition-colors">
+                                  <LogOut size={14} /> Disconnect Wallet
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       );
                     })()}
@@ -317,6 +345,7 @@ const Header = ({ address, hasWallet, notifications = [], inbox = [], usdcBalanc
               }}
             </ConnectButton.Custom>
           </div>
+
         </div>
       </div>
     </header>
@@ -324,8 +353,8 @@ const Header = ({ address, hasWallet, notifications = [], inbox = [], usdcBalanc
 };
 
 const TabButton = ({ active, onClick, icon: Icon, label }: any) => (
-  <button onClick={onClick} className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-md text-[11px] sm:text-xs font-bold tracking-wide transition-all duration-200 ${active ? 'bg-indigo-600 text-white shadow-sm border border-indigo-700' : 'text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 border border-transparent'}`}>
-    <Icon size={14} className="hidden sm:block" />{label}
+  <button onClick={onClick} className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 sm:px-4 rounded-md text-[11px] sm:text-xs font-bold tracking-wide transition-all duration-200 ${active ? 'bg-indigo-600 text-white shadow-sm border border-indigo-700' : 'text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 border border-transparent'}`}>
+    <Icon size={14} className="hidden sm:block shrink-0" /> <span className="truncate">{label}</span>
   </button>
 );
 
@@ -343,6 +372,10 @@ export default function Home() {
 
   const [pendingPayments, setPendingPayments] = useState<Payment[]>([]);
   const [inboxMessages, setInboxMessages] = useState<Payment[]>([]); 
+  
+  const [userStats, setUserStats] = useState<{ xp: number, streak: number, lastCheckin: string | null, username: string | null, avatarId: number, completedQuests: string[] }>({ 
+    xp: 0, streak: 0, lastCheckin: null, username: null, avatarId: 0, completedQuests: [] 
+  });
 
   const { data: balanceData } = useReadContract({
     address: USDC_ADDRESS as `0x${string}`,
@@ -359,6 +392,60 @@ export default function Home() {
     if (status === 'connected' || status === 'disconnected') { setIsSettled(true); clearTimeout(failsafeTimer); }
     return () => clearTimeout(failsafeTimer);
   }, [status]);
+
+  const fetchUserStats = useCallback(async () => {
+    if (address) {
+      const { data } = await supabase.from('user_points')
+        .select('xp, current_streak, last_checkin, username, avatar_id, completed_quests')
+        .eq('wallet_address', address.toLowerCase())
+        .single();
+      
+      let quests = data?.completed_quests || [];
+      let currentXp = data?.xp || 0;
+      let currentUsername = data?.username;
+      let needsUpdate = false;
+
+      if (!currentUsername) {
+        currentUsername = `User_${address.slice(-4)}`;
+        needsUpdate = true;
+      }
+
+      if (!quests.includes('connect_wallet')) {
+        quests = [...quests, 'connect_wallet'];
+        currentXp += 50;
+        needsUpdate = true;
+      }
+
+      if (data) {
+        setUserStats({ 
+          xp: currentXp, 
+          streak: data.current_streak || 0, 
+          lastCheckin: data.last_checkin,
+          username: currentUsername,
+          avatarId: data.avatar_id || 0,
+          completedQuests: quests
+        });
+      } else {
+        setUserStats({ xp: currentXp, streak: 0, lastCheckin: null, username: currentUsername, avatarId: 0, completedQuests: quests });
+      }
+
+      if (needsUpdate) {
+        await supabase.from('user_points').upsert({
+          wallet_address: address.toLowerCase(),
+          username: currentUsername,
+          xp: currentXp,
+          completed_quests: quests,
+          avatar_id: data?.avatar_id || 0
+        });
+      }
+    }
+  }, [address]);
+
+  useEffect(() => {
+    fetchUserStats();
+    window.addEventListener('xp-updated', fetchUserStats);
+    return () => window.removeEventListener('xp-updated', fetchUserStats);
+  }, [fetchUserStats]);
 
   const handleFeedbackSubmit = async () => {
     if (!feedbackMsg.trim()) return;
@@ -502,7 +589,7 @@ export default function Home() {
         </>
       )}
 
-      <Header address={address} hasWallet={hasWallet} notifications={pendingPayments} inbox={inboxMessages} usdcBalance={formattedBalance} onNavigate={() => setActiveTab('activity')} />
+      <Header address={address} hasWallet={hasWallet} notifications={pendingPayments} inbox={inboxMessages} usdcBalance={formattedBalance} userStats={userStats} activeTab={activeTab} onNavigate={setActiveTab} />
 
       <main className={`flex-1 flex flex-col items-center px-4 sm:px-6 w-full mx-auto relative z-10 ${!hasWallet ? 'justify-center py-10 sm:py-16 max-w-5xl' : 'py-8 sm:py-12 max-w-4xl'}`}>
         {!hasWallet ? (
@@ -542,30 +629,47 @@ export default function Home() {
           </div>
         ) : (
           <div className="animate-fade-in w-full flex flex-col items-center gap-6">
-            <div className="flex justify-center p-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-sm w-full max-w-lg">
-              <TabButton active={activeTab === 'create'} onClick={() => setActiveTab('create')} icon={PlusCircle} label="New Escrow" />
-              <TabButton active={activeTab === 'activity'} onClick={() => setActiveTab('activity')} icon={ActivityIcon} label="Activity" />
-              <TabButton active={activeTab === 'guide'} onClick={() => setActiveTab('guide')} icon={BookOpen} label="Guide" />
-            </div>
             
-            <div className="w-full flex justify-center min-h-[400px]">
-              {/* THE FIX: Changed max-w-md to max-w-lg here to match the tab bar width */}
-              {activeTab === 'create' && (
-                <div className="w-full max-w-lg bg-white dark:bg-[#0B1120] border border-slate-200 dark:border-slate-800/80 rounded-2xl p-4 sm:p-6 shadow-[0_8px_30px_rgba(0,0,0,0.06)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.5)] dark:ring-1 dark:ring-white/5">
-                  <EscrowForm onPaymentCreated={() => { setActiveTab('activity'); setTimeout(() => fetchPendingPayments(), 500); }} />
+            {/* DYNAMIC VIEW ROUTER */}
+            {activeTab === 'profile' || activeTab === 'quests' || activeTab === 'leaderboard' ? (
+              <div className="w-full max-w-4xl flex flex-col">
+                <div className="w-full flex justify-start mb-2">
+                  <button onClick={() => setActiveTab('create')} className="text-xs font-bold text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 flex items-center gap-1 transition-colors px-2 py-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
+                    <ChevronLeft size={14} /> Back to Dashboard
+                  </button>
                 </div>
-              )}
-              {activeTab === 'activity' && (
-                <div className="w-full max-w-2xl">
-                  <ActivityList className="w-full" onActivityUpdate={fetchPendingPayments} />
+                {activeTab === 'profile' && <Profile userStats={userStats} fetchUserStats={fetchUserStats} />}
+                {activeTab === 'quests' && <Quests userStats={userStats} fetchUserStats={fetchUserStats} />}
+                {activeTab === 'leaderboard' && <Leaderboard userStats={userStats} />}
+              </div>
+            ) : (
+              <>
+                <div className="flex justify-center p-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-sm w-full max-w-lg">
+                  <TabButton active={activeTab === 'create'} onClick={() => setActiveTab('create')} icon={PlusCircle} label="New Escrow" />
+                  <TabButton active={activeTab === 'activity'} onClick={() => setActiveTab('activity')} icon={ActivityIcon} label="Activity" />
+                  <TabButton active={activeTab === 'guide'} onClick={() => setActiveTab('guide')} icon={BookOpen} label="Guide" />
                 </div>
-              )}
-              {activeTab === 'guide' && (
-                <div className="w-full max-w-3xl">
-                  <Guide />
+                
+                <div className="w-full flex justify-center min-h-[400px]">
+                  {activeTab === 'create' && (
+                    <div className="w-full max-w-lg bg-white dark:bg-[#0B1120] border border-slate-200 dark:border-slate-800/80 rounded-2xl p-4 sm:p-6 shadow-[0_8px_30px_rgba(0,0,0,0.06)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.5)] dark:ring-1 dark:ring-white/5">
+                      <EscrowForm onPaymentCreated={() => { setActiveTab('activity'); setTimeout(() => fetchPendingPayments(), 500); }} />
+                    </div>
+                  )}
+                  {activeTab === 'activity' && (
+                    <div className="w-full max-w-2xl">
+                      <ActivityList className="w-full" onActivityUpdate={fetchPendingPayments} />
+                    </div>
+                  )}
+                  {activeTab === 'guide' && (
+                    <div className="w-full max-w-3xl">
+                      <Guide />
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+              </>
+            )}
+
           </div>
         )}
       </main>
