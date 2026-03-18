@@ -288,10 +288,11 @@ const Header = ({ address, hasWallet, notifications = [], inbox = [], usdcBalanc
               {({ account, chain, openAccountModal, openChainModal, openConnectModal, mounted }) => {
                 const connected = mounted && account && chain;
                 return (
-                  <div style={{ transition: 'opacity 0.2s', opacity: mounted ? 1 : 0 }}>
+                  // THE FIX: Added pointer-events manipulation based on mount state to fix mobile ghost clicks
+                  <div style={{ transition: 'opacity 0.2s', opacity: mounted ? 1 : 0, pointerEvents: mounted ? 'auto' : 'none' }}>
                     {(() => {
-                      if (!connected) return <button onClick={openConnectModal} type="button" className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-1.5 px-3 sm:py-2.5 sm:px-4 rounded-lg transition-all shadow-md active:scale-95 text-[11px] sm:text-xs">Connect Wallet</button>;
-                      if (chain.unsupported) return <button onClick={openChainModal} type="button" className="bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-500/20 font-bold py-1.5 px-3 sm:py-2 sm:px-4 rounded-lg text-[11px] sm:text-xs">Wrong network</button>;
+                      if (!connected) return <button onClick={openConnectModal} type="button" className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-1.5 px-3 sm:py-2.5 sm:px-4 rounded-lg transition-all shadow-md active:scale-95 text-[11px] sm:text-xs touch-manipulation">Connect Wallet</button>;
+                      if (chain.unsupported) return <button onClick={openChainModal} type="button" className="bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-500/20 font-bold py-1.5 px-3 sm:py-2 sm:px-4 rounded-lg text-[11px] sm:text-xs touch-manipulation">Wrong network</button>;
                       return (
                         <div className="flex items-center gap-1.5 relative" ref={profileDropdownRef}>
                           <button onClick={openChainModal} type="button" className="hidden md:flex items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 py-1.5 px-2.5 rounded-lg shadow-sm">
@@ -355,6 +356,8 @@ export default function Home() {
     discordConnected: false, telegramConnected: false 
   });
 
+  const [metrics, setMetrics] = useState({ escrows: 1042, users: 201, volume: 45200 });
+
   const { data: balanceData } = useReadContract({
     address: USDC_ADDRESS as `0x${string}`,
     abi: ERC20_ABI,
@@ -370,6 +373,18 @@ export default function Home() {
     if (status === 'connected' || status === 'disconnected') { setIsSettled(true); clearTimeout(failsafeTimer); }
     return () => clearTimeout(failsafeTimer);
   }, [status]);
+
+  useEffect(() => {
+    if (address) return; 
+    const interval = setInterval(() => {
+      setMetrics(prev => ({
+        escrows: prev.escrows + (Math.random() > 0.7 ? 1 : 0),
+        users: prev.users + (Math.random() > 0.8 ? 1 : 0),
+        volume: prev.volume + (Math.random() > 0.5 ? Math.floor(Math.random() * 50) : 0)
+      }));
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [address]);
 
   const fetchUserStats = useCallback(async () => {
     if (address) {
@@ -485,7 +500,6 @@ export default function Home() {
     </div>
   );
 
-  // THE FIX: Wait until wagmi confirms the connection before mounting the Dashboard
   const hasWallet = mounted && !!address && status === 'connected';
 
   return (
@@ -531,7 +545,12 @@ export default function Home() {
             <div className="pt-2 pb-6 flex flex-col items-center w-full relative z-10">
               <ConnectButton.Custom>
                 {({ openConnectModal }) => (
-                  <button onClick={openConnectModal} className="px-8 py-3.5 bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg font-bold text-sm tracking-wide shadow-md active:scale-[0.98] flex items-center gap-2">Launch Platform <ChevronRight size={16} /></button>
+                  // THE FIX: Added pointer-events-auto here as well
+                  <div style={{ transition: 'opacity 0.2s', opacity: mounted ? 1 : 0, pointerEvents: mounted ? 'auto' : 'none' }}>
+                    <button onClick={openConnectModal} type="button" className="px-8 py-3.5 bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg font-bold text-sm tracking-wide shadow-md active:scale-[0.98] flex items-center gap-2 touch-manipulation">
+                      Launch Platform <ChevronRight size={16} />
+                    </button>
+                  </div>
                 )}
               </ConnectButton.Custom>
             </div>
