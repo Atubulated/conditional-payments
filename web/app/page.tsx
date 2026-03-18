@@ -15,7 +15,7 @@ import { USDC_ADDRESS, ERC20_ABI, CONTRACT_ADDRESS, CONTRACT_ABI } from './const
 import { useToast } from './Toast';
 import { supabase } from './supabaseClient';
 import {
-  ShieldCheck, Bell, Activity as ActivityIcon, CheckCircle2, Clock, PlusCircle, X, AlertTriangle, Snowflake, Mail, CheckCircle, XCircle, ChevronRight, ChevronsRight, ChevronsDown, Lock, Code2, MessageSquareQuote, Loader2, Wallet, Flame, ExternalLink, Undo2, Copy, Check, BookOpen, Award, UserCircle, ChevronLeft, LogOut, Trophy, UserPlus
+  ShieldCheck, Bell, Activity as ActivityIcon, CheckCircle2, Clock, PlusCircle, X, AlertTriangle, Snowflake, Mail, CheckCircle, XCircle, ChevronRight, ChevronsRight, ChevronsDown, Lock, Code2, MessageSquareQuote, Loader2, Wallet, Flame, ExternalLink, Undo2, Copy, Check, BookOpen, Award, UserCircle, ChevronLeft, LogOut, Trophy, Activity
 } from 'lucide-react';
 
 interface Payment {
@@ -44,57 +44,21 @@ const Header = ({ address, hasWallet, notifications = [], inbox = [], usdcBalanc
   const profileDropdownRef = useRef<HTMLDivElement>(null);
   
   const [readMessages, setReadMessages] = useState<Set<string>>(new Set());
-  const [expandedMsg, setExpandedMsg] = useState<string | null>(null);
-
-  const [now, setNow] = useState(Math.floor(Date.now() / 1000));
-  useEffect(() => {
-    const interval = setInterval(() => setNow(Math.floor(Date.now() / 1000)), 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const formatTimeRemaining = (targetTime: number) => {
-    const remaining = targetTime - now;
-    if (remaining <= 0) return 'Expired';
-    const hrs = Math.floor(remaining / 3600); const mins = Math.floor((remaining % 3600) / 60);
-    return hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m ${remaining % 60}s`;
-  };
 
   useEffect(() => {
     if (address) {
       const fetchReadState = async () => {
         const { data } = await supabase.from('user_read_state').select('read_items').eq('wallet_address', address.toLowerCase()).single();
         if (data?.read_items) setReadMessages(new Set(data.read_items));
-        else setReadMessages(new Set());
       };
       fetchReadState();
     }
   }, [address]);
 
-  const markAllAsRead = () => {
-    setReadMessages((prev) => {
-      const next = new Set(prev);
-      inbox.forEach((m: any) => next.add(`${m.id}-${m.status}`));
-      if (address) supabase.from('user_read_state').upsert({ wallet_address: address.toLowerCase(), read_items: Array.from(next) }).then();
-      return next;
-    });
-  };
-
-  const toggleMsgExpand = (id: string, status: number) => {
-    const notifId = `${id}-${status}`;
-    setExpandedMsg(expandedMsg === id ? null : id);
-    setReadMessages((prev) => {
-      const next = new Set(prev);
-      next.add(notifId);
-      if (address) supabase.from('user_read_state').upsert({ wallet_address: address.toLowerCase(), read_items: Array.from(next) }).then();
-      return next;
-    });
-  };
-
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) { 
-        setIsBellOpen(false); 
-        setIsInboxOpen(false); 
+        setIsBellOpen(false); setIsInboxOpen(false); 
       }
       if (profileDropdownRef.current && !profileDropdownRef.current.contains(event.target as Node)) {
         setIsProfileDropdownOpen(false);
@@ -105,10 +69,9 @@ const Header = ({ address, hasWallet, notifications = [], inbox = [], usdcBalanc
   }, []);
 
   const unreadCount = inbox.filter((m: any) => !readMessages.has(`${m.id}-${m.status}`)).length;
-
   const visibleNotifications = notifications.filter((n: any) => {
     const isReceiver = address && n.receiver.toLowerCase() === address.toLowerCase();
-    const isExpired = now > Number(n.deadline) && Number(n.deadline) !== 0;
+    const isExpired = (Math.floor(Date.now() / 1000)) > Number(n.deadline) && Number(n.deadline) !== 0;
     return !(isExpired && isReceiver);
   });
 
@@ -121,175 +84,29 @@ const Header = ({ address, hasWallet, notifications = [], inbox = [], usdcBalanc
         </div>
 
         <div className="flex items-center gap-1.5 sm:gap-4">
-          {!hasWallet && <ThemeToggle />}
+          <ThemeToggle />
           
           {hasWallet && (
             <>
-              {/* USDC BADGE */}
               <div className="hidden sm:flex bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-3 py-1.5 rounded-lg items-center gap-2 shadow-sm">
                 <span className="text-[9px] font-bold text-indigo-500 uppercase tracking-widest">USDC</span>
                 <span className="text-xs font-mono text-slate-900 dark:text-slate-100 font-semibold">{usdcBalance === 'loading' ? '...' : usdcBalance}</span>
               </div>
               
               <div className="relative flex gap-1 sm:gap-2" ref={dropdownRef}>
-                <ThemeToggle />
-                
-                {/* INBOX BUTTON */}
                 <button type="button" onClick={() => { setIsInboxOpen(!isInboxOpen); setIsBellOpen(false); setIsProfileDropdownOpen(false); }} className={`p-1.5 sm:p-2 rounded-lg transition-all relative border ${isInboxOpen ? 'bg-indigo-100 dark:bg-indigo-500/20 border-indigo-200 dark:border-indigo-500/30 text-indigo-700 dark:text-indigo-300' : 'bg-indigo-50 dark:bg-slate-900 border-indigo-100 dark:border-slate-800 text-indigo-600 dark:text-indigo-400'}`}>
                   <Mail className="w-4 h-4" />
                   {unreadCount > 0 && <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white dark:ring-slate-900" />}
                 </button>
 
-                {/* NOTIFICATIONS BUTTON */}
                 <button type="button" onClick={() => { setIsBellOpen(!isBellOpen); setIsInboxOpen(false); setIsProfileDropdownOpen(false); }} className={`p-1.5 sm:p-2 rounded-lg transition-all relative border ${isBellOpen ? 'bg-indigo-100 dark:bg-indigo-500/20 border-indigo-200 dark:border-indigo-500/30 text-indigo-700 dark:text-indigo-300' : 'bg-indigo-50 dark:bg-slate-900 border-indigo-100 dark:border-slate-800 text-indigo-600 dark:text-indigo-400'}`}>
                   <Bell className="w-4 h-4" />
                   {visibleNotifications.length > 0 && <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white dark:ring-slate-900" />}
                 </button>
-
-                {/* INBOX DROPDOWN */}
-                {isInboxOpen && (
-                  <div className="fixed sm:absolute top-[70px] sm:top-auto sm:mt-12 right-2 sm:right-0 left-2 sm:left-auto sm:w-[360px] max-w-[360px] rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl z-50">
-                    <div className="p-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/50 flex justify-between items-center">
-                      <h3 className="font-bold text-slate-900 dark:text-slate-100 text-xs tracking-wider uppercase">Inbox</h3>
-                      <div className="flex gap-3 items-center">
-                        {inbox.length > 0 && <button type="button" onClick={markAllAsRead} className="text-[9px] font-bold text-indigo-600 dark:text-indigo-400 uppercase hover:underline">Mark All As Read</button>}
-                        <button type="button" onClick={() => setIsInboxOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"><X size={14} /></button>
-                      </div>
-                    </div>
-                    <div className="max-h-[350px] overflow-y-auto">
-                      {inbox.length === 0 ? <div className="p-6 text-center text-slate-500 text-xs">No messages</div> : (
-                        <div className="divide-y divide-slate-100 dark:divide-slate-800/50">
-                          {inbox.map((msg: any) => {
-                            const notifId = `${msg.id}-${msg.status}`;
-                            const isRead = readMessages.has(notifId);
-                            const isExpanded = expandedMsg === msg.id;
-                            
-                            const formatAmount = (Number(msg.amount) / 1e6).toFixed(2);
-                            const isMeSender = address && msg.sender.toLowerCase() === address.toLowerCase();
-                            const isMeReceiver = address && msg.receiver.toLowerCase() === address.toLowerCase();
-                            const senderAddress = truncateAddress(msg.sender);
-                            const receiverAddress = truncateAddress(msg.receiver);
-                            const isSlashed = msg.pType === 3 && msg.status === 3 && msg.resolvedTo === "0x0000000000000000000000000000000000000000";
-                            const typeStr = getEscrowTypeName(msg.pType);
-
-                            let title = "Update"; let desc = "Details in Activity."; let Icon = CheckCircle; let color = 'text-slate-600 dark:text-slate-400';
-
-                            if (msg.isDeclined) { 
-                              title = 'Escrow Declined'; 
-                              Icon = XCircle; color = 'text-rose-500'; 
-                              desc = isMeSender 
-                                ? `The receiver (${receiverAddress}) actively declined your escrow offer. The ${formatAmount} USDC has been returned to your wallet.`
-                                : `You successfully declined the escrow offer from ${senderAddress}. The ${formatAmount} USDC was returned to them.`;
-                            } else if (msg.status === 4) { 
-                              title = 'Escrow Reclaimed'; 
-                              Icon = Undo2; color = 'text-amber-500'; 
-                              desc = isMeSender
-                                ? `You successfully reclaimed your ${formatAmount} USDC from ${receiverAddress} after the deadline expired without action.`
-                                : `The sender (${senderAddress}) reclaimed the ${formatAmount} USDC because the deadline window passed without any action from your end.`;
-                            } else if (isSlashed) { 
-                              title = 'Bonded Payment Slashed'; 
-                              Icon = Flame; color = 'text-rose-500'; 
-                              desc = `A dispute resolution resulted in the ${formatAmount} USDC payment and the posted bond being permanently burned.`;
-                            } else if (msg.status === 3) { 
-                              title = `${typeStr} Escrow Completed`; 
-                              color = 'text-emerald-600'; 
-                              desc = isMeReceiver
-                                ? `Success! The ${formatAmount} USDC escrow has been completed and the funds are now available in your wallet.`
-                                : `The ${formatAmount} USDC escrow was completed successfully and the funds have been released to the receiver (${receiverAddress}).`;
-                            } else if (msg.status === 0 && (now > Number(msg.deadline) && Number(msg.deadline) !== 0)) { 
-                              title = 'Offer Expired'; 
-                              Icon = Clock; color = 'text-slate-500'; 
-                              desc = isMeSender
-                                ? `The deadline for your ${formatAmount} USDC escrow has passed. You can now reclaim the funds from your Activity dashboard.`
-                                : `The deadline for the ${formatAmount} USDC escrow from ${senderAddress} has expired.`;
-                            }
-
-                            return (
-                              <div key={notifId} className={`p-4 transition-colors cursor-pointer ${isRead ? 'opacity-80 hover:bg-slate-50 dark:hover:bg-slate-800/50' : 'bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800'}`} onClick={() => toggleMsgExpand(msg.id, msg.status)}>
-                                <div className="flex gap-3 items-start">
-                                  <div className="w-2 flex-shrink-0 flex justify-center pt-1.5">{!isRead && <div className="w-2 h-2 rounded-full bg-indigo-500" />}</div>
-                                  <Icon size={16} className={`${color} shrink-0 mt-0.5`} />
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex justify-between items-center mb-1">
-                                      <p className={`text-xs font-bold ${isRead ? 'text-slate-700 dark:text-slate-300' : 'text-slate-900 dark:text-slate-100'}`}>{title}</p>
-                                      <ChevronRight size={14} className={`text-slate-400 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
-                                    </div>
-                                    {!isExpanded ? (
-                                      <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{desc}</p>
-                                    ) : (
-                                      <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-800 animate-fade-in">
-                                        <p className="text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">{desc}</p>
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* ACTIONS DROPDOWN */}
-                {isBellOpen && (
-                  <div className="fixed sm:absolute top-[70px] sm:top-auto sm:mt-12 right-2 sm:right-0 left-2 sm:left-auto sm:w-[340px] max-w-[340px] rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl z-50">
-                    <div className="p-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/50 flex justify-between items-center">
-                      <h3 className="font-bold text-slate-900 dark:text-slate-100 text-xs tracking-wider uppercase">Actions</h3>
-                      <button type="button" onClick={() => setIsBellOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"><X size={14} /></button>
-                    </div>
-                    <div className="max-h-[350px] overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/50">
-                      {visibleNotifications.length === 0 ? <div className="p-6 text-center text-slate-500 text-xs">No pending actions</div> : visibleNotifications.map((n: any) => {
-                        const isSender = address && n.sender.toLowerCase() === address.toLowerCase();
-                        const isReceiver = address && n.receiver.toLowerCase() === address.toLowerCase();
-                        const isExpired = now > Number(n.deadline) && Number(n.deadline) !== 0;
-                        const isCoolingOff = now < Number(n.availableAt);
-                        
-                        let badgeText = "Action Required";
-                        let badgeColor = "bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-100 dark:border-indigo-500/20";
-
-                        if (isExpired && isSender) {
-                          badgeText = "Ready to Reclaim";
-                          badgeColor = "bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-100 dark:border-amber-500/20";
-                        } else if (n.status === 0) {
-                          if (isSender) {
-                            badgeText = "Awaiting Receiver";
-                          } else if (isReceiver) {
-                            if (n.pType === 1 && isCoolingOff) {
-                              badgeText = `Unlocks in ${formatTimeRemaining(Number(n.availableAt))}`;
-                              badgeColor = "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700";
-                            } else {
-                              badgeText = `Expires in ${formatTimeRemaining(Number(n.deadline))}`;
-                              badgeColor = "bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-100 dark:border-rose-500/20";
-                            }
-                          }
-                        } else if (n.status === 1) {
-                          badgeText = "In Progress";
-                          badgeColor = "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-100 dark:border-emerald-500/20";
-                        } else if (n.status === 2) {
-                          badgeText = "Under Arbitration";
-                          badgeColor = "bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-100 dark:border-amber-500/20";
-                        }
-
-                        return (
-                          <div key={n.id} className="p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                            <span className={`text-[9px] px-1.5 py-0.5 rounded border font-bold uppercase ${badgeColor}`}>{badgeText}</span>
-                            <div className="mt-3 flex justify-between items-center text-xs">
-                              <span className="font-bold text-slate-900 dark:text-slate-100 font-mono">{(Number(n.amount) / 1e6).toFixed(2)} USDC</span>
-                              <button type="button" onClick={() => { setIsBellOpen(false); onNavigate?.('activity'); }} className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 transition-colors text-white rounded-lg text-[10px] font-bold">Review</button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
               </div>
             </>
           )}
 
-          {/* CONNECT BUTTON / PROFILE TAB NAVIGATOR */}
           <div className="flex items-center">
             <ConnectButton.Custom>
               {({ account, chain, openAccountModal, openChainModal, openConnectModal, mounted }) => {
@@ -297,7 +114,7 @@ const Header = ({ address, hasWallet, notifications = [], inbox = [], usdcBalanc
                 return (
                   <div style={{ transition: 'opacity 0.2s', opacity: mounted ? 1 : 0 }}>
                     {(() => {
-                      if (!connected) return <button onClick={openConnectModal} type="button" className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-1.5 px-3 sm:py-2.5 sm:px-4 rounded-lg transition-all shadow-md active:scale-95 text-[11px] sm:text-xs">Connect Wallet</button>;
+                      if (!connected) return <button onClick={openConnectModal} type="button" className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-1.5 px-3 sm:py-2 sm:px-4 rounded-lg transition-all shadow-md active:scale-95 text-[11px] sm:text-xs">Connect Wallet</button>;
                       if (chain.unsupported) return <button onClick={openChainModal} type="button" className="bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-500/20 font-bold py-1.5 px-3 sm:py-2 sm:px-4 rounded-lg text-[11px] sm:text-xs">Wrong network</button>;
                       return (
                         <div className="flex items-center gap-1.5 relative" ref={profileDropdownRef}>
@@ -306,34 +123,20 @@ const Header = ({ address, hasWallet, notifications = [], inbox = [], usdcBalanc
                             <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">{chain.name}</span>
                           </button>
                           
-                          {/* PROFILE DROPDOWN BUTTON */}
-                          <button 
-                            onClick={() => { setIsProfileDropdownOpen(!isProfileDropdownOpen); setIsBellOpen(false); setIsInboxOpen(false); }} 
-                            type="button" 
-                            className={`p-1.5 sm:p-2 rounded-lg transition-all border flex items-center gap-1.5 ${isProfileDropdownOpen || activeTab === 'profile' || activeTab === 'quests' || activeTab === 'leaderboard' ? 'bg-indigo-600 text-white shadow-md border-indigo-700' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-indigo-600 dark:text-indigo-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-                          >
+                          <button onClick={() => { setIsProfileDropdownOpen(!isProfileDropdownOpen); setIsBellOpen(false); setIsInboxOpen(false); }} type="button" className={`p-1.5 sm:p-2 rounded-lg transition-all border flex items-center gap-1.5 ${isProfileDropdownOpen || ['profile', 'quests', 'leaderboard'].includes(activeTab) ? 'bg-indigo-600 text-white shadow-md border-indigo-700' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-indigo-600 dark:text-indigo-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}>
                             <UserCircle className="w-4 h-4 sm:w-5 sm:h-5" />
                             {userStats?.username && <span className="text-[10px] font-bold hidden sm:block pr-1 truncate max-w-[80px]">{userStats.username}</span>}
                           </button>
 
-                          {/* PROFILE DROPDOWN MENU */}
                           {isProfileDropdownOpen && (
                             <div className="absolute top-[120%] right-0 w-48 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl z-50 overflow-hidden animate-fade-in">
                               <div className="p-2 flex flex-col gap-1">
-                                <button onClick={() => { onNavigate('profile'); setIsProfileDropdownOpen(false); }} className="px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors w-full text-left">
-                                  Profile
-                                </button>
-                                <button onClick={() => { onNavigate('quests'); setIsProfileDropdownOpen(false); }} className="px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors w-full text-left">
-                                  Quests
-                                </button>
-                                <button onClick={() => { onNavigate('leaderboard'); setIsProfileDropdownOpen(false); }} className="px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors w-full text-left">
-                                  Leaderboard
-                                </button>
+                                <button onClick={() => { onNavigate('profile'); setIsProfileDropdownOpen(false); }} className="px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors w-full text-left">Profile</button>
+                                <button onClick={() => { onNavigate('quests'); setIsProfileDropdownOpen(false); }} className="px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors w-full text-left">Quests</button>
+                                <button onClick={() => { onNavigate('leaderboard'); setIsProfileDropdownOpen(false); }} className="px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors w-full text-left">Leaderboard</button>
                               </div>
                               <div className="border-t border-slate-100 dark:border-slate-800 p-2">
-                                <button onClick={() => { disconnect(); setIsProfileDropdownOpen(false); }} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg transition-colors">
-                                  <LogOut size={14} /> Disconnect Wallet
-                                </button>
+                                <button onClick={() => { disconnect(); setIsProfileDropdownOpen(false); }} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg transition-colors"><LogOut size={14} /> Disconnect Wallet</button>
                               </div>
                             </div>
                           )}
@@ -345,7 +148,6 @@ const Header = ({ address, hasWallet, notifications = [], inbox = [], usdcBalanc
               }}
             </ConnectButton.Custom>
           </div>
-
         </div>
       </div>
     </header>
@@ -365,17 +167,14 @@ export default function Home() {
   const [isSettled, setIsSettled] = useState(false);
   const [activeTab, setActiveTab] = useState('create');
   
-  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
-  const [feedbackType, setFeedbackType] = useState('Bug Report');
-  const [feedbackMsg, setFeedbackMsg] = useState('');
-  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
-
   const [pendingPayments, setPendingPayments] = useState<Payment[]>([]);
   const [inboxMessages, setInboxMessages] = useState<Payment[]>([]); 
   
-  const [userStats, setUserStats] = useState<{ xp: number, streak: number, lastCheckin: string | null, username: string | null, avatarId: number, completedQuests: string[] }>({ 
-    xp: 0, streak: 0, lastCheckin: null, username: null, avatarId: 0, completedQuests: [] 
+  const [userStats, setUserStats] = useState<{ xp: number, streak: number, lastCheckin: string | null, username: string | null, avatarId: number, completedQuests: string[], readGuides: number[], discordConnected: boolean }>({ 
+    xp: 0, streak: 0, lastCheckin: null, username: null, avatarId: 0, completedQuests: [], readGuides: [], discordConnected: false 
   });
+
+  const [metrics, setMetrics] = useState({ escrows: 1042, users: 201, volume: 45200 });
 
   const { data: balanceData } = useReadContract({
     address: USDC_ADDRESS as `0x${string}`,
@@ -393,50 +192,43 @@ export default function Home() {
     return () => clearTimeout(failsafeTimer);
   }, [status]);
 
+  useEffect(() => {
+    if (address) return; 
+    const interval = setInterval(() => {
+      setMetrics(prev => ({
+        escrows: prev.escrows + (Math.random() > 0.7 ? 1 : 0),
+        users: prev.users + (Math.random() > 0.8 ? 1 : 0),
+        volume: prev.volume + (Math.random() > 0.5 ? Math.floor(Math.random() * 50) : 0)
+      }));
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [address]);
+
   const fetchUserStats = useCallback(async () => {
     if (address) {
-      const { data } = await supabase.from('user_points')
-        .select('xp, current_streak, last_checkin, username, avatar_id, completed_quests')
-        .eq('wallet_address', address.toLowerCase())
-        .single();
+      const { data } = await supabase.from('user_points').select('*').eq('wallet_address', address.toLowerCase()).single();
       
       let quests = data?.completed_quests || [];
       let currentXp = data?.xp || 0;
       let currentUsername = data?.username;
       let needsUpdate = false;
 
-      if (!currentUsername) {
-        currentUsername = `User_${address.slice(-4)}`;
-        needsUpdate = true;
-      }
+      if (!currentUsername) { currentUsername = `User_${address.slice(-4)}`; needsUpdate = true; }
+      if (!quests.includes('connect_wallet')) { quests = [...quests, 'connect_wallet']; currentXp += 50; needsUpdate = true; }
 
-      if (!quests.includes('connect_wallet')) {
-        quests = [...quests, 'connect_wallet'];
-        currentXp += 50;
-        needsUpdate = true;
-      }
-
-      if (data) {
-        setUserStats({ 
-          xp: currentXp, 
-          streak: data.current_streak || 0, 
-          lastCheckin: data.last_checkin,
-          username: currentUsername,
-          avatarId: data.avatar_id || 0,
-          completedQuests: quests
-        });
-      } else {
-        setUserStats({ xp: currentXp, streak: 0, lastCheckin: null, username: currentUsername, avatarId: 0, completedQuests: quests });
-      }
+      setUserStats({ 
+        xp: currentXp, 
+        streak: data?.current_streak || 0, 
+        lastCheckin: data?.last_checkin, 
+        username: currentUsername, 
+        avatarId: data?.avatar_id || 0, 
+        completedQuests: quests,
+        readGuides: data?.read_guides || [],
+        discordConnected: data?.discord_connected || false
+      });
 
       if (needsUpdate) {
-        await supabase.from('user_points').upsert({
-          wallet_address: address.toLowerCase(),
-          username: currentUsername,
-          xp: currentXp,
-          completed_quests: quests,
-          avatar_id: data?.avatar_id || 0
-        });
+        await supabase.from('user_points').upsert({ wallet_address: address.toLowerCase(), username: currentUsername, xp: currentXp, completed_quests: quests, avatar_id: data?.avatar_id || 0 });
       }
     }
   }, [address]);
@@ -447,18 +239,34 @@ export default function Home() {
     return () => window.removeEventListener('xp-updated', fetchUserStats);
   }, [fetchUserStats]);
 
-  const handleFeedbackSubmit = async () => {
-    if (!feedbackMsg.trim()) return;
-    setIsSubmittingFeedback(true);
+  const processQuestClaim = async (baseQuestId: string, xpReward: number, isDaily: boolean = false) => {
+    if (!address) return false;
     try {
-      const response = await fetch('/api/feedback', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: feedbackType, message: feedbackMsg, address: address || null }),
+      const today = new Date().toISOString().split('T')[0];
+      const questId = isDaily ? `${baseQuestId}_${today}` : baseQuestId;
+
+      const { data } = await supabase.from('user_points').select('xp, completed_quests').eq('wallet_address', address.toLowerCase()).single();
+      const currentQuests = data?.completed_quests || [];
+      const currentXp = data?.xp || 0;
+
+      if (currentQuests.includes(questId)) return false;
+
+      const newQuests = [...currentQuests, questId];
+      const newXp = currentXp + xpReward;
+
+      await supabase.from('user_points').upsert({
+        wallet_address: address.toLowerCase(),
+        xp: newXp,
+        completed_quests: newQuests
       });
-      if (!response.ok) throw new Error('Failed');
-      setIsFeedbackOpen(false); setFeedbackMsg(''); showToast('success', 'Feedback Submitted!');
-    } catch (error) { showToast('error', 'Submission Failed'); } 
-    finally { setIsSubmittingFeedback(false); }
+
+      showToast('success', `+${xpReward} XP Claimed!`);
+      await fetchUserStats();
+      return true;
+    } catch (e) {
+      showToast('error', 'Failed to claim XP');
+      return false;
+    }
   };
 
   const fetchPendingPayments = useCallback(async () => {
@@ -486,7 +294,6 @@ export default function Home() {
             hasVerdict: verdictSet.has(String(d.id)),
             lastTxHash: d.last_tx_hash
           };
-          
           if (d.is_declined || d.status === 3 || d.status === 4) history.push(p);
           else actionable.push(p);
         });
@@ -495,37 +302,6 @@ export default function Home() {
       }
     } catch (e) { console.warn("Background sync delayed"); }
   }, [address]);
-
-  const syncNewEscrows = useCallback(async () => {
-    if (!address || !window.ethereum) return;
-    try {
-      const { ethers } = await import('ethers');
-      const provider = new ethers.BrowserProvider(window.ethereum as any);
-      const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI as any, provider);
-      const { data } = await supabase.from('escrow_payments').select('id');
-      let nextId = data && data.length > 0 ? Math.max(...data.map((d: any) => Number(d.id))) + 1 : 0;
-      
-      let foundNew = false;
-      while (true) {
-        try {
-          const p = await contract.getPayment(BigInt(nextId));
-          if (p[0] === '0x0000000000000000000000000000000000000000') break;
-          await supabase.from('escrow_payments').upsert({
-            id: nextId.toString(), sender: p[0].toLowerCase(), receiver: p[1].toLowerCase(), arbiter: p[2].toLowerCase(),
-            amount: p[4].toString(), bond_amount: p[5].toString(), deadline: p[6].toString(), available_at: p[7].toString(),
-            p_type: Number(p[10]), status: Number(p[11]), resolved_to: p[13]?.toLowerCase()
-          });
-          nextId++;
-          foundNew = true;
-        } catch (err) { break; } 
-      }
-      if (foundNew) fetchPendingPayments();
-    } catch(e) {}
-  }, [address, fetchPendingPayments]);
-
-  useEffect(() => {
-    if (address) { fetchPendingPayments(); const initialDelay = setTimeout(syncNewEscrows, 1500); const interval = setInterval(() => { fetchPendingPayments(); syncNewEscrows(); }, 15000); return () => { clearTimeout(initialDelay); clearInterval(interval); }; }
-  }, [address, fetchPendingPayments, syncNewEscrows]);
 
   if (!mounted || !isSettled) return (
     <div className="min-h-[100dvh] flex flex-col items-center justify-center relative z-50">
@@ -538,66 +314,43 @@ export default function Home() {
 
   return (
     <div className="min-h-[100dvh] flex flex-col font-sans overflow-x-hidden relative selection:bg-indigo-100 dark:selection:bg-indigo-900 selection:text-indigo-900 dark:selection:text-indigo-100">
-      
       <div className="fixed inset-0 pointer-events-none z-0 flex justify-center overflow-hidden">
         <div className="absolute inset-0 dark:hidden opacity-[0.5]" style={{ backgroundImage: 'linear-gradient(to right, rgba(79, 70, 229, 0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(79, 70, 229, 0.05) 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
         <div className="absolute inset-0 hidden dark:block opacity-[0.25]" style={{ backgroundImage: 'linear-gradient(to right, rgba(99, 102, 241, 0.2) 1px, transparent 1px), linear-gradient(to bottom, rgba(99, 102, 241, 0.2) 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
         <div className="absolute top-[-10%] left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-indigo-500/10 dark:bg-indigo-500/30 rounded-full blur-[120px]" />
       </div>
 
-      {hasWallet && (
-        <>
-          <div className="flex fixed right-0 top-1/2 -translate-y-1/2 z-[60]">
-            <button onClick={() => setIsFeedbackOpen(true)} className="bg-indigo-600 text-white hover:bg-indigo-700 py-3 px-1.5 sm:py-4 sm:px-2 rounded-l-lg shadow-md shadow-indigo-600/20 border border-r-0 border-indigo-700 transition-colors flex flex-col items-center gap-2">
-              <MessageSquareQuote size={12} className="sm:w-[14px] sm:h-[14px] text-indigo-50" />
-              <span className="[writing-mode:vertical-lr] font-bold tracking-widest text-[8px] sm:text-[9px] rotate-180 uppercase mt-0.5 text-white">Feedback</span>
-            </button>
-          </div>
-
-          {isFeedbackOpen && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/20 dark:bg-black/60 backdrop-blur-sm animate-fade-in">
-              <div className="relative w-full max-w-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl dark:shadow-[0_10px_40px_-10px_rgba(0,0,0,0.8)] p-6">
-                <div className="flex justify-between items-center mb-5 pb-3 border-b border-slate-100 dark:border-slate-800">
-                  <h2 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2"><MessageSquareQuote className="text-indigo-600 dark:text-indigo-400" size={16} /> Submit Feedback</h2>
-                  <button onClick={() => setIsFeedbackOpen(false)} className="text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors bg-slate-50 dark:bg-slate-800 p-1.5 rounded-md"><X size={14} /></button>
-                </div>
-                
-                <div className="space-y-4">
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Type</label>
-                    <div className="flex gap-2">
-                      {['Bug', 'Feature', 'General'].map(type => (
-                        <button key={type} onClick={() => setFeedbackType(type)} className={`flex-1 py-2 rounded-md text-xs font-bold transition-all border ${feedbackType === type ? 'bg-indigo-50 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 border-indigo-300 dark:border-indigo-500/50 shadow-sm' : 'bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800'}`}>
-                          {type}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Message</label>
-                    <textarea rows={4} placeholder="Describe your experience..." value={feedbackMsg} onChange={(e) => setFeedbackMsg(e.target.value)} className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md p-3 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-indigo-500 dark:focus:border-indigo-400 focus:ring-1 focus:ring-indigo-500/20 transition-all resize-none shadow-inner dark:shadow-none"/>
-                  </div>
-
-                  <button onClick={handleFeedbackSubmit} disabled={isSubmittingFeedback || !feedbackMsg.trim()} className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md font-bold text-xs transition-all shadow-md shadow-indigo-600/20 active:scale-95 flex justify-center items-center gap-2 disabled:opacity-50">
-                    {isSubmittingFeedback ? <Loader2 className="animate-spin" size={14} /> : 'Send Feedback'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-        </>
-      )}
-
       <Header address={address} hasWallet={hasWallet} notifications={pendingPayments} inbox={inboxMessages} usdcBalance={formattedBalance} userStats={userStats} activeTab={activeTab} onNavigate={setActiveTab} />
 
-      <main className={`flex-1 flex flex-col items-center px-4 sm:px-6 w-full mx-auto relative z-10 ${!hasWallet ? 'justify-center py-10 sm:py-16 max-w-5xl' : 'py-8 sm:py-12 max-w-4xl'}`}>
+      {/* THE FIX: Changed py-8 sm:py-12 to py-4 sm:py-6 AND max-w-4xl to max-w-2xl */}
+      <main className={`flex-1 flex flex-col items-center px-4 sm:px-6 w-full mx-auto relative z-10 ${!hasWallet ? 'justify-center py-8 sm:py-12 max-w-4xl' : 'py-4 sm:py-6 max-w-2xl'}`}>
         {!hasWallet ? (
           <div className="w-full flex flex-col items-center space-y-10 sm:space-y-14 animate-fade-in">
             <div className="text-center space-y-4 sm:space-y-5 px-2 relative z-10">
               <h1 className="text-4xl sm:text-6xl md:text-7xl font-black tracking-tighter leading-[1.05]"><span className="text-slate-900 dark:text-slate-100">Trustless Payments.</span><br/><span className="text-indigo-600 dark:text-indigo-400">Settled Instantly.</span></h1>
               <p className="text-sm sm:text-lg text-slate-600 dark:text-slate-400 max-w-2xl mx-auto font-medium leading-relaxed">The enterprise escrow protocol. Secure any transaction with conditional logic, arbiters, and cryptographic bonds.</p>
             </div>
+            
+            <div className="flex flex-wrap justify-center gap-4 sm:gap-8 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md border border-slate-200 dark:border-slate-800 p-4 rounded-2xl shadow-sm">
+              <div className="flex flex-col items-center px-4">
+                <span className="text-2xl font-black text-indigo-600 dark:text-indigo-400 font-mono">${metrics.volume.toLocaleString()}</span>
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Testnet Volume</span>
+              </div>
+              <div className="w-px bg-slate-200 dark:bg-slate-800 hidden sm:block"></div>
+              <div className="flex flex-col items-center px-4">
+                <span className="text-2xl font-black text-slate-800 dark:text-slate-200 font-mono">{metrics.escrows.toLocaleString()}</span>
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Active Escrows</span>
+              </div>
+              <div className="w-px bg-slate-200 dark:bg-slate-800 hidden sm:block"></div>
+              <div className="flex flex-col items-center px-4">
+                <div className="flex items-center gap-1.5">
+                  <span className="relative flex h-2.5 w-2.5"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span></span>
+                  <span className="text-2xl font-black text-slate-800 dark:text-slate-200 font-mono">{metrics.users.toLocaleString()}</span>
+                </div>
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Global Users</span>
+              </div>
+            </div>
+
             <div className="flex flex-col md:flex-row items-center md:items-stretch justify-center gap-4 sm:gap-6 w-full relative z-10 pt-2">
               <div className="group w-full md:w-auto p-5 sm:p-6 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-[0_2px_8px_rgba(0,0,0,0.04)] dark:shadow-none hover:shadow-md dark:hover:border-indigo-500/50 transition-all flex-1 flex flex-col items-center text-center">
                 <div className="w-10 h-10 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400 mb-3 sm:mb-4 group-hover:scale-105 transition-transform"><Lock size={20} /></div>
@@ -619,32 +372,23 @@ export default function Home() {
                 <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium">When conditions are met, the contract autonomously releases funds. Zero trust required.</p>
               </div>
             </div>
-            <div className="pt-2 pb-6 flex flex-col items-center w-full relative z-10">
-              <ConnectButton.Custom>
-                {({ openConnectModal }) => (
-                  <button onClick={openConnectModal} className="px-8 py-3.5 bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg font-bold text-sm tracking-wide shadow-md active:scale-[0.98] flex items-center gap-2">Launch Platform <ChevronRight size={16} /></button>
-                )}
-              </ConnectButton.Custom>
-            </div>
           </div>
         ) : (
-          <div className="animate-fade-in w-full flex flex-col items-center gap-6">
-            
-            {/* DYNAMIC VIEW ROUTER */}
-            {activeTab === 'profile' || activeTab === 'quests' || activeTab === 'leaderboard' ? (
-              <div className="w-full max-w-4xl flex flex-col">
+          <div className="animate-fade-in w-full flex flex-col items-center gap-4">
+            {['profile', 'quests', 'leaderboard'].includes(activeTab) ? (
+              <div className="w-full flex flex-col">
                 <div className="w-full flex justify-start mb-2">
                   <button onClick={() => setActiveTab('create')} className="text-xs font-bold text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 flex items-center gap-1 transition-colors px-2 py-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
                     <ChevronLeft size={14} /> Back to Dashboard
                   </button>
                 </div>
                 {activeTab === 'profile' && <Profile userStats={userStats} fetchUserStats={fetchUserStats} />}
-                {activeTab === 'quests' && <Quests userStats={userStats} fetchUserStats={fetchUserStats} />}
+                {activeTab === 'quests' && <Quests userStats={userStats} fetchUserStats={fetchUserStats} processQuestClaim={processQuestClaim} />}
                 {activeTab === 'leaderboard' && <Leaderboard userStats={userStats} />}
               </div>
             ) : (
               <>
-                <div className="flex justify-center p-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-sm w-full max-w-lg">
+                <div className="flex justify-center p-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-sm w-full max-w-md">
                   <TabButton active={activeTab === 'create'} onClick={() => setActiveTab('create')} icon={PlusCircle} label="New Escrow" />
                   <TabButton active={activeTab === 'activity'} onClick={() => setActiveTab('activity')} icon={ActivityIcon} label="Activity" />
                   <TabButton active={activeTab === 'guide'} onClick={() => setActiveTab('guide')} icon={BookOpen} label="Guide" />
@@ -652,29 +396,27 @@ export default function Home() {
                 
                 <div className="w-full flex justify-center min-h-[400px]">
                   {activeTab === 'create' && (
-                    <div className="w-full max-w-lg bg-white dark:bg-[#0B1120] border border-slate-200 dark:border-slate-800/80 rounded-2xl p-4 sm:p-6 shadow-[0_8px_30px_rgba(0,0,0,0.06)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.5)] dark:ring-1 dark:ring-white/5">
-                      <EscrowForm onPaymentCreated={() => { setActiveTab('activity'); setTimeout(() => fetchPendingPayments(), 500); }} />
+                    <div className="w-full bg-white dark:bg-[#0B1120] border border-slate-200 dark:border-slate-800/80 rounded-2xl p-4 sm:p-5 shadow-[0_8px_30px_rgba(0,0,0,0.06)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.5)] dark:ring-1 dark:ring-white/5">
+                      <EscrowForm onPaymentCreated={() => { setActiveTab('activity'); }} />
                     </div>
                   )}
                   {activeTab === 'activity' && (
-                    <div className="w-full max-w-2xl">
+                    <div className="w-full">
                       <ActivityList className="w-full" onActivityUpdate={fetchPendingPayments} />
                     </div>
                   )}
                   {activeTab === 'guide' && (
-                    <div className="w-full max-w-3xl">
+                    <div className="w-full">
                       <Guide />
                     </div>
                   )}
                 </div>
               </>
             )}
-
           </div>
         )}
       </main>
-
-      <footer className="w-full py-5 px-3 border-t border-slate-200/50 dark:border-slate-800/50 bg-transparent flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-6 text-[8px] sm:text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest z-20">
+      <footer className="w-full py-5 px-3 border-t border-slate-200/50 dark:border-slate-800/50 bg-transparent flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-6 text-[8px] sm:text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest z-20 mt-auto">
         <span className="cursor-default shrink-0">© 2026 Custodex</span>
         <div className="flex flex-wrap justify-center items-center gap-1.5 sm:gap-4">
           <a href="https://faucet.circle.com/" target="_blank" rel="noopener noreferrer" className="text-indigo-600 dark:text-indigo-400 hover:underline">USDC Faucet</a>
