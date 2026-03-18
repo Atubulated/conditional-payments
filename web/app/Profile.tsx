@@ -3,23 +3,36 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useAccount, useDisconnect } from 'wagmi';
-import { ConnectButton } from '@rainbow-me/rainbowkit';
-import { Award, Flame, Copy, Wallet, Loader2, Check, UserPlus, Image as ImageIcon, MessageCircle, AlertTriangle } from 'lucide-react';
+import { Award, Flame, Copy, Wallet, Loader2, Check, UserPlus, Image as ImageIcon, AlertTriangle, Pencil, X } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import { useToast } from './Toast';
 
 const truncateAddress = (addr: string) => addr ? `${addr.slice(0, 6)}...${addr.slice(-4)}` : '';
 const AVATARS = ["bg-indigo-500", "bg-emerald-500", "bg-rose-500", "bg-amber-500", "bg-slate-700"];
 
+const DiscordIcon = ({ size = 24, className = "" }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className} xmlns="http://www.w3.org/2000/svg">
+    <path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189z"/>
+  </svg>
+);
+
+const TelegramIcon = ({ size = 24, className = "" }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className} xmlns="http://www.w3.org/2000/svg">
+    <path d="m20.665 3.717-17.73 6.837c-1.21.486-1.203 1.161-.222 1.462l4.552 1.42 10.532-6.645c.498-.303.953-.14.579.192l-8.533 7.701h-.002l.002.001-.314 4.692c.46 0 .663-.211.921-.46l2.211-2.15 4.599 3.377c.848.467 1.457.227 1.668-.785l3.019-14.228c.309-1.239-.473-1.8-1.282-1.414z"/>
+  </svg>
+);
+
 export default function Profile({ userStats, fetchUserStats }: any) {
   const { address } = useAccount();
   const { disconnect } = useDisconnect();
   const { showToast } = useToast();
+  
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isUnlinking, setIsUnlinking] = useState(false);
   const [copiedHash, setCopiedHash] = useState<string | null>(null);
   
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   const [usernameInput, setUsernameInput] = useState(userStats?.username || '');
   const [selectedAvatar, setSelectedAvatar] = useState(userStats?.avatarId || 0);
@@ -47,6 +60,7 @@ export default function Profile({ userStats, fetchUserStats }: any) {
       });
       showToast('success', 'Profile settings saved');
       await fetchUserStats();
+      setShowEditModal(false); 
     } catch (e: any) {
       showToast('error', 'Failed to save');
     } finally {
@@ -65,6 +79,20 @@ export default function Profile({ userStats, fetchUserStats }: any) {
       await fetchUserStats();
     } catch (e) {
       showToast('error', 'Discord link failed');
+    }
+  };
+
+  const handleTelegramConnect = async () => {
+    if (!address) return;
+    try {
+      await supabase.from('user_points').upsert({
+        wallet_address: address.toLowerCase(),
+        telegram_connected: true
+      });
+      showToast('success', 'Telegram linked successfully');
+      await fetchUserStats();
+    } catch (e) {
+      showToast('error', 'Telegram link failed');
     }
   };
 
@@ -88,20 +116,31 @@ export default function Profile({ userStats, fetchUserStats }: any) {
   const userAvatarClass = AVATARS[userStats?.avatarId || 0];
 
   return (
-    <div className="w-full animate-fade-in pb-8 space-y-4 relative">
+    <div className="w-full animate-fade-in pb-8 space-y-4 relative flex flex-col items-center">
       
-      {/* TIGHTENED: Top Banner */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
+      {/* Top Banner */}
+      <div className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
         <div className="flex items-center gap-3">
           <div className={`w-12 h-12 rounded-full ${userAvatarClass} shrink-0 ring-4 ring-slate-50 dark:ring-slate-950 flex items-center justify-center text-white text-base font-bold`}>
             {userStats?.username ? userStats.username.charAt(0).toUpperCase() : <Wallet size={16} />}
           </div>
           <div>
-            <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">{userStats?.username || 'Anonymous User'}</h2>
+            <h2 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+              {userStats?.username || 'Anonymous User'}
+            </h2>
             <div className="flex items-center gap-2 mt-0.5">
               <p className="text-xs font-mono text-slate-500 dark:text-slate-400">{truncateAddress(address)}</p>
-              <button onClick={() => handleCopyHash(address)} className="text-slate-400 hover:text-indigo-500 transition-colors">
+              <button onClick={() => handleCopyHash(address)} className="text-slate-400 hover:text-indigo-500 transition-colors" title="Copy Address">
                 {copiedHash === address ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
+              </button>
+              <div className="w-px h-3 bg-slate-300 dark:bg-slate-700 mx-1"></div>
+              <button 
+                onClick={() => setShowEditModal(true)} 
+                className="text-slate-400 hover:text-indigo-500 transition-colors flex items-center gap-1"
+                title="Edit Profile"
+              >
+                <Pencil size={12} />
+                <span className="text-[9px] font-bold uppercase tracking-wider hidden sm:block">Edit</span>
               </button>
             </div>
           </div>
@@ -119,110 +158,140 @@ export default function Profile({ userStats, fetchUserStats }: any) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        
-        {/* TIGHTENED: Settings Form */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm animate-fade-in">
-          <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50">
-            <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm">Identity Settings</h3>
-            <p className="text-xs text-slate-500 mt-0.5">Manage your public profile.</p>
-          </div>
-          <div className="p-4 sm:p-5 space-y-5">
-            
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2"><UserPlus size={12}/> Display Name</label>
-              <input 
-                type="text" 
-                placeholder="Enter a username..." 
-                value={usernameInput}
-                onChange={(e) => setUsernameInput(e.target.value)}
-                className="w-full bg-transparent border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2"><ImageIcon size={12}/> Profile Color</label>
-              <div className="flex gap-3">
-                {AVATARS.map((bgClass, idx) => (
-                  <button 
-                    key={idx} 
-                    onClick={() => setSelectedAvatar(idx)}
-                    className={`w-8 h-8 rounded-full ${bgClass} transition-all duration-200 ${selectedAvatar === idx ? 'ring-4 ring-indigo-500 ring-offset-2 dark:ring-offset-slate-900 scale-110' : 'opacity-60 hover:opacity-100 hover:scale-105'}`}
-                  />
-                ))}
-              </div>
-            </div>
-
-            <div className="pt-2 border-t border-slate-100 dark:border-slate-800/50">
-              <button 
-                onClick={handleSaveProfile} 
-                disabled={isSavingProfile || (usernameInput === userStats?.username && selectedAvatar === userStats?.avatarId) || usernameInput.trim().length < 3}
-                className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm transition-all disabled:opacity-50 active:scale-95 flex items-center justify-center gap-2 shadow-sm"
-              >
-                {isSavingProfile ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-                {isSavingProfile ? 'Saving...' : 'Save Profile'}
-              </button>
-            </div>
-
-          </div>
+      <div className="w-full max-w-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm animate-fade-in mt-2">
+        <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50">
+          <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm">Connected Accounts</h3>
+          <p className="text-xs text-slate-500 mt-0.5">Link your social profiles and manage your Web3 wallets.</p>
         </div>
-
-        {/* TIGHTENED: Third Party Integrations */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm animate-fade-in">
-          <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50">
-            <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm">Integrations</h3>
-            <p className="text-xs text-slate-500 mt-0.5">Connect external accounts and wallets.</p>
-          </div>
-          <div className="p-4 sm:p-5 space-y-4">
-            
-            <div className="flex flex-col gap-2 pb-4 border-b border-slate-100 dark:border-slate-800/50">
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-[#5865F2]/10 text-[#5865F2] flex items-center justify-center"><MessageCircle size={14}/></div>
-                  <span className="text-sm font-bold text-slate-900 dark:text-slate-100">Discord</span>
+        <div className="p-4 sm:p-5 space-y-4">
+          
+          <div className="flex flex-col gap-2 pb-4 border-b border-slate-100 dark:border-slate-800/50">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-[#5865F2]/10 text-[#5865F2] flex items-center justify-center">
+                  <DiscordIcon size={16}/>
                 </div>
-                {userStats?.discordConnected ? (
-                  <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-1 rounded-md">
-                    {userStats?.discordUsername || 'User#1234'}
-                  </span>
-                ) : (
-                  <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-md">Not Linked</span>
-                )}
+                <span className="text-sm font-bold text-slate-900 dark:text-slate-100">Discord</span>
               </div>
-              {!userStats?.discordConnected && (
-                <button onClick={handleDiscordConnect} className="w-full py-2 bg-[#5865F2] hover:bg-[#4752C4] text-white text-[11px] font-bold rounded-lg transition-colors shadow-sm mt-1">
-                  Connect Discord
-                </button>
+              {userStats?.discordConnected ? (
+                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-1 rounded-md">
+                  {userStats?.discordUsername || 'User#1234'}
+                </span>
+              ) : (
+                <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-md">Not Linked</span>
               )}
             </div>
+            {!userStats?.discordConnected && (
+              <button onClick={handleDiscordConnect} className="w-fit px-6 py-2 bg-[#5865F2] hover:bg-[#4752C4] text-white text-[11px] font-bold rounded-lg transition-colors shadow-sm mt-1">
+                Connect Discord
+              </button>
+            )}
+          </div>
 
-            <div className="flex flex-col gap-2">
-              <div className="flex justify-between items-start">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mt-0.5"><Wallet size={14}/></div>
-                  <div className="flex flex-col">
-                    <span className="text-sm font-bold text-slate-900 dark:text-slate-100">Primary Wallet</span>
-                    <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400 mt-0.5 break-all">{address}</span>
-                  </div>
+          <div className="flex flex-col gap-2 pb-4 border-b border-slate-100 dark:border-slate-800/50">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-[#24A1DE]/10 text-[#24A1DE] flex items-center justify-center">
+                  <TelegramIcon size={16}/>
+                </div>
+                <span className="text-sm font-bold text-slate-900 dark:text-slate-100">Telegram</span>
+              </div>
+              {userStats?.telegramConnected ? (
+                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-1 rounded-md">
+                  {userStats?.telegramUsername || '@user123'}
+                </span>
+              ) : (
+                <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-md">Not Linked</span>
+              )}
+            </div>
+            {!userStats?.telegramConnected && (
+              <button onClick={handleTelegramConnect} className="w-fit px-6 py-2 bg-[#24A1DE] hover:bg-[#1E8CC2] text-white text-[11px] font-bold rounded-lg transition-colors shadow-sm mt-1">
+                Connect Telegram
+              </button>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-2 pt-1">
+            <div className="flex justify-between items-start">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mt-0.5"><Wallet size={16}/></div>
+                <div className="flex flex-col">
+                  <span className="text-sm font-bold text-slate-900 dark:text-slate-100">Primary Wallet</span>
+                  <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400 mt-0.5 break-all">{address}</span>
                 </div>
               </div>
-              <button 
-                onClick={() => setShowDeleteModal(true)} 
-                className="w-full py-2 border border-rose-300 dark:border-rose-700/50 text-rose-600 dark:text-rose-400 rounded-lg text-[11px] font-bold hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors flex justify-center items-center gap-2 mt-1"
-              >
-                Unlink Wallet
-              </button>
             </div>
-
+            <button 
+              onClick={() => setShowDeleteModal(true)} 
+              className="w-fit px-6 py-2 border border-rose-300 dark:border-rose-700/50 text-rose-600 dark:text-rose-400 rounded-lg text-[11px] font-bold hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors flex justify-center items-center gap-2 mt-1"
+            >
+              Unlink Wallet
+            </button>
           </div>
-        </div>
 
+        </div>
       </div>
 
+      {/* Identity Settings Modal */}
+      {showEditModal && createPortal(
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-slate-900/60 dark:bg-black/80 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl ring-1 ring-black/5 dark:ring-white/5 border border-slate-200 dark:border-slate-800">
+            <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950/50">
+              <div>
+                <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm">Edit Profile</h3>
+                <p className="text-[10px] text-slate-500 mt-0.5">Customize your public identity.</p>
+              </div>
+              <button onClick={() => setShowEditModal(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1.5 rounded-md transition-colors">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="p-5 space-y-5">
+              
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2"><UserPlus size={12}/> Display Name</label>
+                <input 
+                  type="text" 
+                  placeholder="Enter a username..." 
+                  value={usernameInput}
+                  onChange={(e) => setUsernameInput(e.target.value)}
+                  className="w-full bg-transparent border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2"><ImageIcon size={12}/> Profile Color</label>
+                <div className="flex gap-3 justify-between">
+                  {AVATARS.map((bgClass, idx) => (
+                    <button 
+                      key={idx} 
+                      onClick={() => setSelectedAvatar(idx)}
+                      className={`w-10 h-10 rounded-full ${bgClass} transition-all duration-200 ${selectedAvatar === idx ? 'ring-4 ring-indigo-500 ring-offset-2 dark:ring-offset-slate-900 scale-110' : 'opacity-60 hover:opacity-100 hover:scale-105'}`}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-slate-100 dark:border-slate-800/50">
+                <button 
+                  onClick={handleSaveProfile} 
+                  disabled={isSavingProfile || (usernameInput === userStats?.username && selectedAvatar === userStats?.avatarId) || usernameInput.trim().length < 3}
+                  className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm transition-all disabled:opacity-50 active:scale-95 flex items-center justify-center gap-2 shadow-sm"
+                >
+                  {isSavingProfile ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+                  {isSavingProfile ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Custom Delete Confirmation Modal */}
       {showDeleteModal && createPortal(
         <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-slate-900/60 dark:bg-black/80 backdrop-blur-sm animate-fade-in">
           <div className="bg-white dark:bg-slate-900 p-6 sm:p-8 rounded-3xl max-w-sm w-full space-y-6 shadow-2xl ring-1 ring-black/5 dark:ring-white/5 border border-slate-200 dark:border-slate-800">
-            
             <div className="text-center space-y-4">
               <div className="w-14 h-14 bg-rose-50 dark:bg-rose-500/10 text-rose-500 dark:text-rose-400 border border-rose-100 dark:border-rose-500/20 rounded-full mx-auto flex items-center justify-center">
                 <AlertTriangle className="w-7 h-7" />
@@ -234,7 +303,6 @@ export default function Profile({ userStats, fetchUserStats }: any) {
                 </p>
               </div>
             </div>
-            
             <div className="flex gap-3">
               <button 
                 onClick={() => setShowDeleteModal(false)} 
@@ -252,7 +320,6 @@ export default function Profile({ userStats, fetchUserStats }: any) {
                 {isUnlinking ? 'Deleting...' : 'Yes, Unlink'}
               </button>
             </div>
-            
           </div>
         </div>,
         document.body

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Clock, ShieldAlert, Flame, CheckCircle2, BookOpen, Lock, ArrowRight, ShieldCheck, X, Award, Info, BookText } from 'lucide-react';
+import { Clock, ShieldAlert, Flame, CheckCircle2, BookOpen, X, BookText } from 'lucide-react';
 import { useAccount } from 'wagmi';
 import { supabase } from './supabaseClient';
 
@@ -90,15 +90,13 @@ export default function Guide() {
         .single()
         .then(({ data }) => {
           if (data?.read_guides) {
-            setReadGuides(new Set(data.read_guides));
+            // Filter out the legacy '99' flag if it exists, we only care about guides 1, 2, and 3 now.
+            const validGuides = data.read_guides.filter((id: number) => id !== 99);
+            setReadGuides(new Set(validGuides));
           }
         });
     }
   }, [address]);
-
-  // We use "99" in the database array as a secret flag to know if they've claimed the XP
-  const claimed = readGuides.has(99);
-  const validGuidesCount = Array.from(readGuides).filter(id => id !== 99).length;
 
   const handleOpenModal = (id: number) => {
     setActiveModal(id);
@@ -119,37 +117,11 @@ export default function Guide() {
           wallet_address: address.toLowerCase(),
           read_guides: Array.from(newSet)
         });
+        // Trigger a global update so the Quests page instantly unlocks the claim button
+        window.dispatchEvent(new Event('xp-updated'));
       }
     }
     setActiveModal(null);
-  };
-
-  const handleClaimXP = async () => {
-    if (validGuidesCount < 3 || claimed) return;
-    
-    // Add the "99" flag to mark it as claimed in the UI immediately
-    const newSet = new Set(readGuides).add(99);
-    setReadGuides(newSet);
-
-    if (address) {
-      // 1. Get their current XP
-      const { data } = await supabase.from('user_points')
-        .select('xp')
-        .eq('wallet_address', address.toLowerCase())
-        .single();
-      
-      const currentXP = data?.xp || 0;
-      
-      // 2. Add 50 XP and save the claim flag (99)
-      await supabase.from('user_points').upsert({
-        wallet_address: address.toLowerCase(),
-        xp: currentXP + 50,
-        read_guides: Array.from(newSet)
-      });
-
-      // 3. Tell the Header component to refresh its XP counter instantly
-      window.dispatchEvent(new Event('xp-updated'));
-    }
   };
 
   const activeModuleData = GUIDE_MODULES.find(m => m.id === activeModal);
@@ -208,37 +180,6 @@ export default function Guide() {
             </button>
           );
         })}
-      </div>
-
-      {/* Gamification / Points Hook */}
-      <div className="mt-8 pt-8 border-t border-slate-200 dark:border-slate-800 flex flex-col items-center gap-4">
-        
-        {!claimed && (
-          <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700">
-            <Info size={16} className="text-slate-500" />
-            <span className="text-xs font-medium text-slate-600 dark:text-slate-300">
-              Read all 3 modules to unlock 50 XP ({validGuidesCount}/3 completed)
-            </span>
-          </div>
-        )}
-
-        <button 
-          onClick={handleClaimXP}
-          disabled={claimed || validGuidesCount < 3}
-          className={`flex items-center gap-2 px-8 py-3.5 rounded-xl font-bold text-sm transition-all active:scale-95 ${
-            claimed 
-              ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 cursor-default' 
-              : validGuidesCount === 3 
-                ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/20 cursor-pointer animate-pulse-slow'
-                : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed'
-          }`}
-        >
-          {claimed ? (
-            <><CheckCircle2 size={18} /> XP Claimed</>
-          ) : (
-            <><Award size={18} /> Claim 50 XP</>
-          )}
-        </button>
       </div>
 
       {/* Detailed Reading Modal */}
