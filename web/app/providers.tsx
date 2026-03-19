@@ -1,5 +1,7 @@
 'use client';
 
+console.log('WC ID:', process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID);
+
 import * as React from 'react';
 import { WagmiProvider, http } from 'wagmi';
 import {

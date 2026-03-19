@@ -2,8 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
-  
-  // Allow WalletConnect and related services
+
   async headers() {
     return [
       {
@@ -14,10 +13,13 @@ const nextConfig: NextConfig = {
             value: [
               "default-src 'self'",
               "script-src 'self' 'unsafe-eval' 'unsafe-inline'",
-              "style-src 'self' 'unsafe-inline'",
+              // ✅ FIX 1: Added Google Fonts stylesheet domain
+              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "img-src 'self' data: https: blob:",
-              "font-src 'self' data:",
-              "connect-src 'self' https: wss:",
+              // ✅ FIX 2: Added Google Fonts file server
+              "font-src 'self' data: https://fonts.gstatic.com",
+              // ✅ FIX 3: Made WalletConnect WebSocket domain explicit
+              "connect-src 'self' https: wss: wss://relay.walletconnect.org wss://relay.walletconnect.com",
               "frame-src 'self' https:",
             ].join("; "),
           },
