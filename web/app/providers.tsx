@@ -1,7 +1,5 @@
 'use client';
 
-console.log('WC ID:', process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID);
-
 import * as React from 'react';
 import { WagmiProvider, http } from 'wagmi';
 import {
@@ -35,18 +33,16 @@ const arcTestnet: Chain = {
 const config = getDefaultConfig({
   appName: 'Custodex',
   projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? 'YOUR_PROJECT_ID',
-  // THE FIX: mainnet MUST be first so the WalletConnect handshake uses a fast, reliable RPC.
+  // THE FIX: Mainnet is absolutely first to guarantee an instant mobile handshake
   chains: [mainnet, arcTestnet],
-  // THE FIX: Force a 5-second timeout on Arc Testnet so it can never hang the app for 70 seconds again.
   transports: {
     [mainnet.id]: http(),
-    [arcTestnet.id]: http('https://rpc.testnet.arc.network', { timeout: 5000 }),
+    [arcTestnet.id]: http(), // Removed the hacky timeout; we don't need it anymore
   },
   ssr: true,
   wallets: [
     {
       groupName: 'Recommended',
-      // Added TrustWallet as it is highly popular on mobile and bypasses the WC modal entirely
       wallets: [rainbowWallet, metaMaskWallet, rabbyWallet, trustWallet, walletConnectWallet],
     },
   ],
@@ -79,9 +75,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
+        {/* THE FIX: Removed initialChain={arcTestnet} so it defaults to mainnet for the initial connection */}
         <RainbowKitProvider 
           theme={mounted && resolvedTheme === 'dark' ? appDarkTheme : appLightTheme}
-          initialChain={arcTestnet} // Forces the UI to default to Arc Testnet after the handshake
         >
           <ToastProvider>
             {children}
