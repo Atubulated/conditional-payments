@@ -169,7 +169,8 @@ export default function ArbiterChat({ paymentId, currentUserAddress, arbiterAddr
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center h-[80vh] min-h-[500px] max-h-[800px] w-full bg-slate-50/50 dark:bg-slate-950/50">
+      // SURGICAL FIX: Shrunk min height so it fits on landscape/short mobile screens
+      <div className="flex flex-col items-center justify-center h-[80vh] min-h-[300px] max-h-[90vh] w-full bg-slate-50/50 dark:bg-slate-950/50">
         <Loader2 className="w-8 h-8 animate-spin text-indigo-500 dark:text-indigo-400 mb-4" />
         <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Syncing Room...</span>
       </div>
@@ -177,7 +178,8 @@ export default function ArbiterChat({ paymentId, currentUserAddress, arbiterAddr
   }
 
   return (
-    <div className="flex flex-col h-[80vh] max-h-[800px] min-h-[500px] w-full bg-white dark:bg-slate-900 overflow-hidden animate-fade-in">
+    // SURGICAL FIX: Allowed shrinking to 300px and limited max height to 90vh
+    <div className="flex flex-col h-[80vh] max-h-[90vh] min-h-[300px] w-full bg-white dark:bg-slate-900 overflow-hidden animate-fade-in">
       <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-900 shrink-0 shadow-sm z-10">
         <div className="flex items-center gap-3.5">
           <div className={`w-11 h-11 rounded-xl flex items-center justify-center shadow-inner ${paymentStatus === 2 ? 'bg-gradient-to-br from-amber-50 dark:from-amber-900/30 to-amber-100 dark:to-amber-800/30 border border-amber-200 dark:border-amber-700/50 text-amber-600 dark:text-amber-500' : 'bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400'}`}>
@@ -245,7 +247,8 @@ export default function ArbiterChat({ paymentId, currentUserAddress, arbiterAddr
 
             return (
               <div key={msg.id} className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'}`}>
-                <div className={`flex flex-col max-w-[85%] sm:max-w-[80%] ${isMe ? 'items-end' : 'items-start'}`}>
+                {/* SURGICAL FIX: Expanded bubble max-width for better mobile reading */}
+                <div className={`flex flex-col max-w-[90%] sm:max-w-[80%] ${isMe ? 'items-end' : 'items-start'}`}>
                   <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5 px-1 flex items-center gap-1.5">
                     {isArbiterMsg && <Shield size={10} className="text-amber-500" />}
                     {isMe ? `You (${myRole})` : roleLabel}

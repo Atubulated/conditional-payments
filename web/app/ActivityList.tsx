@@ -66,11 +66,13 @@ export default function ActivityList({ className = '', onActivityUpdate }: { cla
     if (!address) return;
     try {
       const userAddr = address.toLowerCase();
-      const [paymentsRes, verdictsRes] = await Promise.all([
+      // SURGICAL FIX: Fetch all chat instances to correctly show Transcript button
+      const [paymentsRes, anyChatRes] = await Promise.all([
           supabase.from('escrow_payments').select('*').or(`sender.eq.${userAddr},receiver.eq.${userAddr},arbiter.eq.${userAddr}`),
-          supabase.from('arbiter_chat').select('payment_id').ilike('message', 'VERDICT RENDERED%')
+          supabase.from('arbiter_chat').select('payment_id')
       ]);
-      if (verdictsRes.data) setVerdictPayments(new Set(verdictsRes.data.map(v => String(v.payment_id))));
+      if (anyChatRes.data) setVerdictPayments(new Set(anyChatRes.data.map(v => String(v.payment_id))));
+      
       if (paymentsRes.data) {
         const sorted = paymentsRes.data.sort((a: any, b: any) => Number(b.id) - Number(a.id));
         setPayments(sorted.map((d: any) => ({
@@ -201,30 +203,30 @@ export default function ActivityList({ className = '', onActivityUpdate }: { cla
     const isCoolingOff = now < Number(p.availableAt);
     
     if (p.status === 2 && isArbiter) return (
-      <div className="flex gap-2 mt-2">
-        <button onClick={() => setResolveAction({ id: p.id, action: 'resolve_sender', target: p.sender, label: 'Sender', pType: p.pType })} className="px-3 py-2 bg-white dark:bg-slate-800 border border-rose-300 dark:border-rose-500/50 text-rose-600 dark:text-rose-400 text-xs font-bold rounded-xl hover:bg-rose-50 dark:hover:bg-rose-500/10">Refund Sender</button>
-        <button onClick={() => setResolveAction({ id: p.id, action: 'resolve_receiver', target: p.receiver, label: 'Receiver', pType: p.pType })} className="px-3 py-2 bg-white dark:bg-slate-800 border border-emerald-300 dark:border-emerald-500/50 text-emerald-600 dark:text-emerald-400 text-xs font-bold rounded-xl hover:bg-emerald-50 dark:hover:bg-emerald-500/10">Pay Receiver</button>
+      <div className="flex flex-wrap sm:flex-nowrap gap-2 mt-2 w-full sm:w-auto">
+        <button onClick={() => setResolveAction({ id: p.id, action: 'resolve_sender', target: p.sender, label: 'Sender', pType: p.pType })} className="flex-1 sm:flex-none px-3 py-2 bg-white dark:bg-slate-800 border border-rose-300 dark:border-rose-500/50 text-rose-600 dark:text-rose-400 text-xs font-bold rounded-xl hover:bg-rose-50 dark:hover:bg-rose-500/10 whitespace-nowrap">Refund Sender</button>
+        <button onClick={() => setResolveAction({ id: p.id, action: 'resolve_receiver', target: p.receiver, label: 'Receiver', pType: p.pType })} className="flex-1 sm:flex-none px-3 py-2 bg-white dark:bg-slate-800 border border-emerald-300 dark:border-emerald-500/50 text-emerald-600 dark:text-emerald-400 text-xs font-bold rounded-xl hover:bg-emerald-50 dark:hover:bg-emerald-500/10 whitespace-nowrap">Pay Receiver</button>
       </div>
     );
     
-    if (isExpired && isSender && p.status !== 4 && p.status !== 3 && p.status !== 2) return <button onClick={() => executeAction('reclaim', p.id)} className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl flex items-center gap-2 shadow-lg animate-pulse-slow mt-2"><Undo2 size={14}/> Reclaim Funds</button>;
+    if (isExpired && isSender && p.status !== 4 && p.status !== 3 && p.status !== 2) return <button onClick={() => executeAction('reclaim', p.id)} className="w-full sm:w-auto px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl flex justify-center items-center gap-2 shadow-lg animate-pulse-slow mt-2 whitespace-nowrap"><Undo2 size={14}/> Reclaim Funds</button>;
     
     if (p.status === 0 && isReceiver && !isExpired) return (
-      <div className="flex gap-2 mt-2">
-        <button onClick={() => setDeclineAction(p)} className="px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:text-rose-600 dark:hover:text-rose-400 text-xs font-bold rounded-xl">Decline</button>
-        {p.pType === 1 ? (!isCoolingOff && <button onClick={() => executeAction('claim', p.id, p.pType)} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-md">Claim</button>)
-        : <button onClick={() => executeAction('accept', p.id, p.pType, p.bondAmount)} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-md">{p.pType === 3 ? 'Post Bond' : 'Accept'}</button>}
+      <div className="flex flex-wrap sm:flex-nowrap gap-2 mt-2 w-full sm:w-auto">
+        <button onClick={() => setDeclineAction(p)} className="flex-1 sm:flex-none px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:text-rose-600 dark:hover:text-rose-400 text-xs font-bold rounded-xl whitespace-nowrap">Decline</button>
+        {p.pType === 1 ? (!isCoolingOff && <button onClick={() => executeAction('claim', p.id, p.pType)} className="flex-1 sm:flex-none px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-md whitespace-nowrap">Claim</button>)
+        : <button onClick={() => executeAction('accept', p.id, p.pType, p.bondAmount)} className="flex-1 sm:flex-none px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-md whitespace-nowrap">{p.pType === 3 ? 'Post Bond' : 'Accept'}</button>}
       </div>
     );
     
     if (p.status === 1 && !isExpired) {
       if (isSender) return (
-        <div className="flex gap-2 mt-2">
-          <button onClick={() => executeAction('release', p.id)} className="px-3 py-2 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-800 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/30 text-xs font-bold rounded-xl hover:bg-emerald-100 dark:hover:bg-emerald-500/20">Release</button>
-          <button onClick={() => setDisputeAction(p)} className="px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-rose-600 dark:text-rose-400 text-xs font-bold rounded-xl hover:bg-rose-50 dark:hover:bg-rose-500/10">Dispute</button>
+        <div className="flex flex-wrap sm:flex-nowrap gap-2 mt-2 w-full sm:w-auto">
+          <button onClick={() => executeAction('release', p.id)} className="flex-1 sm:flex-none px-3 py-2 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-800 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/30 text-xs font-bold rounded-xl hover:bg-emerald-100 dark:hover:bg-emerald-500/20 whitespace-nowrap">Release</button>
+          <button onClick={() => setDisputeAction(p)} className="flex-1 sm:flex-none px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-rose-600 dark:text-rose-400 text-xs font-bold rounded-xl hover:bg-rose-50 dark:hover:bg-rose-500/10 whitespace-nowrap">Dispute</button>
         </div>
       );
-      if (isReceiver && p.pType !== 3) return <button onClick={() => setDisputeAction(p)} className="px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-rose-600 dark:text-rose-400 text-xs font-bold rounded-xl hover:bg-rose-50 dark:hover:bg-rose-500/10 mt-2">Dispute</button>;
+      if (isReceiver && p.pType !== 3) return <button onClick={() => setDisputeAction(p)} className="w-full sm:w-auto px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-rose-600 dark:text-rose-400 text-xs font-bold rounded-xl hover:bg-rose-50 dark:hover:bg-rose-500/10 mt-2 whitespace-nowrap">Dispute</button>;
     }
     return null;
   };
@@ -239,9 +241,9 @@ export default function ActivityList({ className = '', onActivityUpdate }: { cla
 
   return (
     <div className={`w-full space-y-5 ${className} animate-fade-in`}>
-      <div className="flex gap-2">
+      <div className="flex gap-2 overflow-x-auto custom-scrollbar pb-1">
         {(['all', 'active', 'completed'] as const).map(f => (
-          <button key={f} onClick={() => setFilter(f)} className={`px-4 py-1.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-all ${filter === f ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-sm' : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}>{f}</button>
+          <button key={f} onClick={() => setFilter(f)} className={`px-4 py-1.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-all whitespace-nowrap ${filter === f ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-sm' : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}>{f}</button>
         ))}
       </div>
       <div className="space-y-4">
@@ -257,7 +259,6 @@ export default function ActivityList({ className = '', onActivityUpdate }: { cla
           let warningText = "";
           let warningIconColor = "text-indigo-500 dark:text-indigo-400";
 
-          // THE FIX: Accurate countdown timers for the warning banner based on user role and status
           if (p.deadline !== "0" && !p.isDeclined && p.status !== 3 && p.status !== 4 && p.status !== 2) {
               if (isExpired && isSender && (p.status === 0 || p.status === 1)) {
                   showWarning = true;
@@ -284,28 +285,33 @@ export default function ActivityList({ className = '', onActivityUpdate }: { cla
           if (isSlashed) { destAddress = '0x0000...0000'; destLabel = 'Slashed'; flowColor = 'text-rose-300 dark:text-rose-500/50'; destLabelColor = 'text-rose-500 dark:text-rose-400'; }
           else if (isReturned) { destAddress = p.sender; destLabel = 'Refunded To'; FlowIcon = Undo2; flowColor = 'text-amber-400 dark:text-amber-500/50'; destLabelColor = 'text-amber-600 dark:text-amber-400'; }
 
+          // SURGICAL FIX: Validate if chat actually exists
+          const hasChatHistory = verdictPayments.has(String(p.id));
+
           return (
             <div key={p.id} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl flex flex-col shadow-sm dark:shadow-[0_8px_30px_rgba(0,0,0,0.4)] overflow-hidden">
               <div className="p-4 sm:p-5 flex flex-col gap-4">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                   <div className="space-y-3 w-full sm:w-auto">
                     <div className={`px-2.5 py-1 w-fit rounded-md border text-[10px] font-bold uppercase flex items-center gap-1.5 ${statusColor}`}><StatusIcon size={12} /> {statusText}</div>
-                    <div className="flex items-center flex-wrap gap-2 text-[11px] font-mono text-slate-500 dark:text-slate-400">
-                      <div className="flex items-center gap-1.5"><span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase font-sans">From</span><span className={isSender ? 'text-indigo-600 dark:text-indigo-400 font-bold' : ''}>{truncateAddress(p.sender)}</span></div>
-                      <FlowIcon size={12} className={flowColor} />
-                      <div className="flex items-center gap-1.5"><span className={`text-[9px] font-bold uppercase font-sans ${destLabelColor}`}>{destLabel}</span><span className={address?.toLowerCase() === destAddress.toLowerCase() ? 'text-indigo-600 dark:text-indigo-400 font-bold' : ''}>{destAddress === '0x0000...0000' ? destAddress : truncateAddress(destAddress)}</span></div>
-                      {p.pType === 2 && <><span className="text-slate-300 dark:text-slate-700 hidden sm:inline">•</span><div className="flex items-center gap-1.5 mt-1 sm:mt-0"><span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase font-sans">Arbiter</span><span className={isArbiter ? 'text-amber-600 dark:text-amber-400 font-bold' : ''}>{truncateAddress(p.arbiter)}</span></div></>}
+                    
+                    {/* SURGICAL FIX: Added flex-wrap and whitespace-nowrap so addresses stack neatly on mobile */}
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-2 text-[11px] font-mono text-slate-500 dark:text-slate-400">
+                      <div className="flex items-center gap-1.5 whitespace-nowrap"><span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase font-sans">From</span><span className={isSender ? 'text-indigo-600 dark:text-indigo-400 font-bold' : ''}>{truncateAddress(p.sender)}</span></div>
+                      <FlowIcon size={12} className={`shrink-0 ${flowColor}`} />
+                      <div className="flex items-center gap-1.5 whitespace-nowrap"><span className={`text-[9px] font-bold uppercase font-sans ${destLabelColor}`}>{destLabel}</span><span className={address?.toLowerCase() === destAddress.toLowerCase() ? 'text-indigo-600 dark:text-indigo-400 font-bold' : ''}>{destAddress === '0x0000...0000' ? destAddress : truncateAddress(destAddress)}</span></div>
+                      {p.pType === 2 && <><span className="text-slate-300 dark:text-slate-700 hidden sm:inline shrink-0">•</span><div className="flex items-center gap-1.5 mt-1 sm:mt-0 whitespace-nowrap"><span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase font-sans">Arbiter</span><span className={isArbiter ? 'text-amber-600 dark:text-amber-400 font-bold' : ''}>{truncateAddress(p.arbiter)}</span></div></>}
                     </div>
                   </div>
                   
-                  {/* AMOUNT & TXN HASH RIGHT COLUMN */}
-                  <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto gap-3 pt-3 sm:pt-0">
-                    <div className="text-right flex flex-col items-end">
+                  {/* SURGICAL FIX: Restructured buttons to flex-wrap gracefully */}
+                  <div className="flex flex-col sm:flex-col items-start sm:items-end justify-between w-full sm:w-auto gap-3 pt-2 sm:pt-0">
+                    <div className="text-left sm:text-right flex flex-col items-start sm:items-end w-full sm:w-auto border-t border-slate-100 dark:border-slate-800/50 sm:border-0 pt-3 sm:pt-0">
                       <div className="font-bold text-slate-900 dark:text-white text-base">{(Number(p.amount) / 1e6).toFixed(2)} USDC</div>
                       {p.pType === 3 && <div className="text-[10px] text-slate-600 dark:text-slate-400 font-semibold uppercase mt-0.5">Bond: {(Number(p.bondAmount) / 1e6).toFixed(2)}</div>}
                       
                       {p.lastTxHash && (
-                        <div className="flex items-center gap-1.5 mt-1 opacity-80 hover:opacity-100 transition-opacity">
+                        <div className="flex items-center gap-1.5 mt-1.5 opacity-80 hover:opacity-100 transition-opacity">
                           <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Txn Hash</span>
                           <div className="flex items-center gap-1 bg-slate-50 dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-100 dark:border-slate-700">
                             <a href={`https://testnet.arcscan.app/tx/${p.lastTxHash}`} target="_blank" rel="noopener noreferrer" className="font-mono font-medium text-[9px] text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1">
@@ -320,10 +326,10 @@ export default function ActivityList({ className = '', onActivityUpdate }: { cla
                       )}
                     </div>
                     
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap w-full sm:w-auto gap-2">
                       {getActionButtons(p, isSender, isReceiver, isArbiter)}
-                      {p.pType === 2 && p.status === 2 && <button onClick={() => setActiveChatPayment(p)} className="px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-700 text-xs font-bold rounded-xl shadow-md flex items-center gap-1.5 mt-2"><MessageSquare size={14} /> View Chat</button>}
-                      {verdictPayments.has(String(p.id)) && (p.status === 3 || p.status === 4) && <button onClick={() => setActiveChatPayment(p)} className="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-bold rounded-xl shadow-sm flex items-center gap-1.5 mt-2"><MessageSquare size={14} /> Transcript</button>}
+                      {p.pType === 2 && p.status === 2 && <button onClick={() => setActiveChatPayment(p)} className="w-full sm:w-auto justify-center px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-700 text-xs font-bold rounded-xl shadow-md flex items-center gap-1.5 mt-2"><MessageSquare size={14} /> View Chat</button>}
+                      {hasChatHistory && (p.status === 3 || p.status === 4) && <button onClick={() => setActiveChatPayment(p)} className="w-full sm:w-auto justify-center px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-bold rounded-xl shadow-sm flex items-center gap-1.5 mt-2"><MessageSquare size={14} /> Transcript</button>}
                     </div>
                   </div>
                 </div>
@@ -341,10 +347,10 @@ export default function ActivityList({ className = '', onActivityUpdate }: { cla
         })}
       </div>
 
-      {/* DISPUTE MODAL */}
       {disputeAction && createPortal(
         <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/60 dark:bg-black/80 backdrop-blur-sm animate-fade-in" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
-          <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl max-w-sm w-full space-y-5 shadow-2xl ring-1 ring-black/5 dark:ring-white/5">
+          {/* SURGICAL FIX: Added max-h-[90vh] overflow-y-auto to modals to prevent cropping on short mobile screens */}
+          <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl max-w-sm w-full space-y-5 shadow-2xl ring-1 ring-black/5 dark:ring-white/5 max-h-[90vh] overflow-y-auto">
             <div className="text-center space-y-3">
               <div className={`w-12 h-12 border rounded-full mx-auto flex items-center justify-center ${disputeAction.pType === 3 ? 'bg-rose-50 dark:bg-rose-500/10 border-rose-100 dark:border-rose-500/20 text-rose-500 dark:text-rose-400' : 'bg-amber-50 dark:bg-amber-500/10 border-amber-100 dark:border-amber-500/20 text-amber-500 dark:text-amber-400'}`}>
                 {disputeAction.pType === 3 ? <Flame className="w-6 h-6" /> : <AlertTriangle className="w-6 h-6" />}
@@ -366,10 +372,9 @@ export default function ActivityList({ className = '', onActivityUpdate }: { cla
         </div>, document.body
       )}
 
-      {/* DECLINE MODAL */}
       {declineAction && createPortal(
         <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/60 dark:bg-black/80 backdrop-blur-sm animate-fade-in" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
-          <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl max-w-sm w-full space-y-5 shadow-2xl ring-1 ring-black/5 dark:ring-white/5">
+          <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl max-w-sm w-full space-y-5 shadow-2xl ring-1 ring-black/5 dark:ring-white/5 max-h-[90vh] overflow-y-auto">
             <div className="text-center space-y-3">
               <div className="w-12 h-12 bg-rose-50 dark:bg-rose-500/10 text-rose-500 dark:text-rose-400 border border-rose-100 dark:border-rose-500/20 rounded-full mx-auto flex items-center justify-center"><XCircle className="w-6 h-6" /></div>
               <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Decline Offer</h2>
@@ -383,10 +388,9 @@ export default function ActivityList({ className = '', onActivityUpdate }: { cla
         </div>, document.body
       )}
 
-      {/* RESOLVE MODAL */}
       {resolveAction && createPortal(
         <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/60 dark:bg-black/80 backdrop-blur-sm animate-fade-in" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
-          <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl max-w-sm w-full space-y-5 shadow-2xl ring-1 ring-black/5 dark:ring-white/5">
+          <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl max-w-sm w-full space-y-5 shadow-2xl ring-1 ring-black/5 dark:ring-white/5 max-h-[90vh] overflow-y-auto">
             <div className="flex flex-col items-center text-center space-y-3">
               <div className={`w-12 h-12 rounded-full flex items-center justify-center border ${resolveAction.action === 'resolve_sender' ? 'bg-rose-50 dark:bg-rose-500/10 border-rose-100 dark:border-rose-500/20 text-rose-500 dark:text-rose-400' : 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-100 dark:border-emerald-500/20 text-emerald-500 dark:text-emerald-400'}`}><AlertTriangle className="w-6 h-6" /></div>
               <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">Confirm Verdict</h2>
@@ -399,7 +403,7 @@ export default function ActivityList({ className = '', onActivityUpdate }: { cla
               <label className="text-xs font-bold text-slate-700 dark:text-slate-400 uppercase tracking-wider text-center block">Type <span className="text-slate-900 dark:text-slate-100">CONFIRM</span> to execute</label>
               <input autoFocus type="text" placeholder="CONFIRM" value={resolveConfirmText} onChange={(e) => setResolveConfirmText(e.target.value.toUpperCase())} className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-4 py-3.5 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 font-mono text-base font-bold text-center uppercase focus:outline-none focus:border-indigo-500" />
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap sm:flex-nowrap gap-2">
               <button onClick={() => setResolveAction(null)} className="flex-1 py-3.5 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-300 rounded-xl font-bold text-sm uppercase tracking-wide">Cancel</button>
               <button onClick={() => { executeAction(resolveAction.action, resolveAction.id, resolveAction.pType, undefined, resolveAction.target); setResolveAction(null); }} disabled={resolveConfirmText !== 'CONFIRM'} className={`flex-1 py-3.5 text-white rounded-xl font-bold text-sm uppercase tracking-wide disabled:opacity-50 ${resolveConfirmText === 'CONFIRM' ? (resolveAction.action === 'resolve_sender' ? 'bg-rose-600 hover:bg-rose-700' : 'bg-emerald-600 hover:bg-emerald-700') : 'bg-slate-200 dark:bg-slate-800'}`}>Execute</button>
             </div>
@@ -407,9 +411,8 @@ export default function ActivityList({ className = '', onActivityUpdate }: { cla
         </div>, document.body
       )}
 
-      {/* CHAT MODAL */}
       {activeChatPayment && createPortal(
-        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 sm:p-6 bg-black/60 dark:bg-black/80 backdrop-blur-sm" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-6 bg-black/60 dark:bg-black/80 backdrop-blur-sm" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
           <div className="bg-white dark:bg-slate-900 max-w-lg w-full rounded-3xl overflow-hidden relative ring-1 ring-black/5 dark:ring-white/5">
             <button onClick={() => setActiveChatPayment(null)} className="absolute top-4 right-4 z-50 p-2 bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-white rounded-full hover:bg-slate-200 dark:hover:bg-slate-700"><X size={16} strokeWidth={3} /></button>
             <ArbiterChat paymentId={activeChatPayment.id} currentUserAddress={address as string} arbiterAddress={activeChatPayment.arbiter} senderAddress={activeChatPayment.sender} receiverAddress={activeChatPayment.receiver} paymentStatus={activeChatPayment.status} />
