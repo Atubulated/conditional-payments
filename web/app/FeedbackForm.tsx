@@ -58,21 +58,21 @@ export default function FeedbackForm() {
 
   return (
     <>
-      {/* 1. The Fixed Floating Side Handle (Now with text!) */}
+      {/* The Sleek Side Tab - Restored to perfectly centered (top-1/2) for all screens */}
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed right-0 top-1/2 -translate-y-1/2 z-40 bg-indigo-600 hover:bg-indigo-700 text-white rounded-l-xl py-4 px-2 shadow-lg transition-all hover:-translate-x-1 flex flex-col items-center justify-center gap-3 border border-indigo-500/50 border-r-0 group"
+        className="fixed right-0 top-1/2 -translate-y-1/2 z-40 bg-indigo-600/95 backdrop-blur-md hover:bg-indigo-700 text-white rounded-l-xl py-3 px-1.5 sm:py-4 sm:px-2 shadow-[-4px_0_15px_rgba(79,70,229,0.2)] transition-all hover:-translate-x-1 flex flex-col items-center justify-center gap-2 sm:gap-3 border border-indigo-400/40 border-r-0 group"
         title="Submit Feedback"
       >
-        <MessageSquarePlus size={18} className="drop-shadow-sm shrink-0" />
-        <span className="text-[11px] font-bold tracking-[0.2em] uppercase [writing-mode:vertical-rl] rotate-180 shrink-0 opacity-90 group-hover:opacity-100">
+        <MessageSquarePlus className="w-3.5 h-3.5 sm:w-[18px] sm:h-[18px] drop-shadow-sm shrink-0" />
+        <span className="text-[8px] sm:text-[11px] font-bold tracking-[0.2em] uppercase [writing-mode:vertical-rl] rotate-180 shrink-0 opacity-90 group-hover:opacity-100">
           Feedback
         </span>
       </button>
 
-      {/* 2. The Sleek Centered Modal */}
+      {/* The Centered Modal */}
       {isOpen && createPortal(
-        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-slate-900/40 dark:bg-black/80 backdrop-blur-sm animate-fade-in">
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-slate-900/60 dark:bg-black/80 backdrop-blur-sm animate-fade-in">
           <div className="bg-white dark:bg-slate-900 rounded-[24px] w-full max-w-[380px] p-6 shadow-2xl relative animate-scale-in border border-slate-200/50 dark:border-slate-800">
             
             {/* Header */}
@@ -83,7 +83,7 @@ export default function FeedbackForm() {
               </div>
               <button 
                 onClick={() => setIsOpen(false)} 
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors bg-slate-50 dark:bg-slate-800 rounded-full p-1"
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors bg-slate-50 dark:bg-slate-800 rounded-full p-1.5"
               >
                 <X size={14} strokeWidth={3} />
               </button>

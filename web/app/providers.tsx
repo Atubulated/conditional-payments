@@ -14,6 +14,7 @@ import {
   walletConnectWallet,
   rabbyWallet,
 } from '@rainbow-me/rainbowkit/wallets';
+import { mainnet } from 'wagmi/chains'; // THE FIX: Importing a standard chain
 import { type Chain } from 'wagmi/chains';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useTheme } from 'next-themes';
@@ -31,9 +32,9 @@ const arcTestnet: Chain = {
 const config = getDefaultConfig({
   appName: 'Custodex',
   projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? 'YOUR_PROJECT_ID',
-  chains: [arcTestnet],
+  // THE FIX: Adding mainnet so WalletConnect v2 can successfully handshake
+  chains: [arcTestnet, mainnet],
   ssr: true,
-  // THE FIX: Explicitly locking in Rabby so it never disappears
   wallets: [
     {
       groupName: 'Popular',
@@ -71,6 +72,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <QueryClientProvider client={queryClient}>
         <RainbowKitProvider 
           theme={mounted && resolvedTheme === 'dark' ? appDarkTheme : appLightTheme}
+          initialChain={arcTestnet} // Force it to default to Arc
         >
           <ToastProvider>
             {children}
