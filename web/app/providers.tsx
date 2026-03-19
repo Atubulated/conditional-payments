@@ -9,11 +9,16 @@ import {
   darkTheme,
 } from '@rainbow-me/rainbowkit';
 import {
-  rainbowWallet,
   metaMaskWallet,
-  walletConnectWallet,
-  rabbyWallet,
+  okxWallet,
   trustWallet,
+  rabbyWallet,
+  phantomWallet,
+  bitgetWallet,
+  safepalWallet,
+  coinbaseWallet,
+  rainbowWallet,
+  walletConnectWallet,
 } from '@rainbow-me/rainbowkit/wallets';
 import { mainnet } from 'wagmi/chains';
 import { type Chain } from 'wagmi/chains';
@@ -21,6 +26,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useTheme } from 'next-themes';
 import { ToastProvider } from './Toast';
 
+// 1. Define our custom Arc Testnet
 const arcTestnet: Chain = {
   id: 5042002,
   name: 'Arc Testnet',
@@ -30,20 +36,36 @@ const arcTestnet: Chain = {
   testnet: true,
 };
 
+// 2. Configure RainbowKit with prioritized wallet lists
 const config = getDefaultConfig({
   appName: 'Custodex',
   projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? 'YOUR_PROJECT_ID',
-  // THE FIX: Mainnet is absolutely first to guarantee an instant mobile handshake
   chains: [mainnet, arcTestnet],
   transports: {
     [mainnet.id]: http(),
-    [arcTestnet.id]: http(), // Removed the hacky timeout; we don't need it anymore
+    [arcTestnet.id]: http(),
   },
   ssr: true,
   wallets: [
     {
-      groupName: 'Recommended',
-      wallets: [rainbowWallet, metaMaskWallet, rabbyWallet, trustWallet, walletConnectWallet],
+      groupName: 'Popular DApp Browsers',
+      wallets: [
+        okxWallet,
+        metaMaskWallet,
+        trustWallet,
+        rabbyWallet,
+        phantomWallet,
+        bitgetWallet,
+        safepalWallet,
+        coinbaseWallet,
+      ],
+    },
+    {
+      groupName: 'Fallback (May be slow on mobile data)',
+      wallets: [
+        rainbowWallet,
+        walletConnectWallet,
+      ],
     },
   ],
 });
@@ -75,7 +97,6 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
-        {/* THE FIX: Removed initialChain={arcTestnet} so it defaults to mainnet for the initial connection */}
         <RainbowKitProvider 
           theme={mounted && resolvedTheme === 'dark' ? appDarkTheme : appLightTheme}
         >
