@@ -10,6 +10,7 @@ import Guide from './Guide';
 import Profile from './Profile';
 import Quests from './Quests';
 import Leaderboard from './Leaderboard';
+import FeedbackForm from './FeedbackForm';
 import ThemeToggle from './ThemeToggle';
 import { USDC_ADDRESS, ERC20_ABI, CONTRACT_ADDRESS, CONTRACT_ABI } from './constants';
 import { useToast } from './Toast';
@@ -290,7 +291,6 @@ const Header = ({ address, hasWallet, notifications = [], inbox = [], usdcBalanc
                 return (
                   <div style={{ transition: 'opacity 0.2s', opacity: mounted ? 1 : 0, pointerEvents: mounted ? 'auto' : 'none' }}>
                     {(() => {
-                      // THE FIX: Removed active:scale-95 to prevent mobile touch cancellation
                       if (!connected) return <button onClick={openConnectModal} type="button" className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-1.5 px-3 sm:py-2.5 sm:px-4 rounded-lg transition-all shadow-md text-[11px] sm:text-xs touch-manipulation">Connect Wallet</button>;
                       if (chain.unsupported) return <button onClick={openChainModal} type="button" className="bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-500/20 font-bold py-1.5 px-3 sm:py-2 sm:px-4 rounded-lg text-[11px] sm:text-xs touch-manipulation">Wrong network</button>;
                       return (
@@ -305,6 +305,7 @@ const Header = ({ address, hasWallet, notifications = [], inbox = [], usdcBalanc
                             {userStats?.username && <span className="text-[10px] font-bold hidden sm:block pr-1 truncate max-w-[80px]">{userStats.username}</span>}
                           </button>
 
+                          {/* REVERTED: Removed feedback button from this dropdown entirely */}
                           {isProfileDropdownOpen && (
                             <div className="absolute top-[120%] right-0 w-48 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl z-50 overflow-hidden animate-fade-in">
                               <div className="p-2 flex flex-col gap-1">
@@ -532,7 +533,6 @@ export default function Home() {
               <ConnectButton.Custom>
                 {({ openConnectModal }) => (
                   <div style={{ transition: 'opacity 0.2s', opacity: mounted ? 1 : 0, pointerEvents: mounted ? 'auto' : 'none' }}>
-                    {/* THE FIX: Removed active:scale-[0.98] to prevent mobile touch cancellation */}
                     <button onClick={openConnectModal} type="button" className="px-8 py-3.5 bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg font-bold text-sm tracking-wide shadow-md flex items-center gap-2 touch-manipulation">
                       Launch Platform <ChevronRight size={16} />
                     </button>
@@ -543,6 +543,7 @@ export default function Home() {
           </div>
         ) : (
           <div className="animate-fade-in w-full flex flex-col items-center gap-4">
+            {/* REVERTED: Tab logic put back exactly how it was */}
             {['profile', 'quests', 'leaderboard'].includes(activeTab) ? (
               <div className="w-full flex flex-col">
                 <div className="w-full flex justify-start mb-2">
@@ -597,6 +598,9 @@ export default function Home() {
           <a href="https://testnet.arcscan.app/" target="_blank" rel="noopener noreferrer" className="text-indigo-600 dark:text-indigo-400 hover:underline">Arc Explorer</a>
         </div>
       </footer>
+
+      {/* THE FIX: Now it ONLY shows if the user is connected */}
+      {hasWallet && <FeedbackForm />}
     </div>
   );
 }

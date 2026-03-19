@@ -8,6 +8,12 @@ import {
   lightTheme,
   darkTheme,
 } from '@rainbow-me/rainbowkit';
+import {
+  rainbowWallet,
+  metaMaskWallet,
+  walletConnectWallet,
+  rabbyWallet,
+} from '@rainbow-me/rainbowkit/wallets';
 import { type Chain } from 'wagmi/chains';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useTheme } from 'next-themes';
@@ -26,7 +32,14 @@ const config = getDefaultConfig({
   appName: 'Custodex',
   projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? 'YOUR_PROJECT_ID',
   chains: [arcTestnet],
-  ssr: true, // This strictly enables Next.js native hydration syncing
+  ssr: true,
+  // THE FIX: Explicitly locking in Rabby so it never disappears
+  wallets: [
+    {
+      groupName: 'Popular',
+      wallets: [rainbowWallet, rabbyWallet, metaMaskWallet, walletConnectWallet],
+    },
+  ],
 });
 
 const queryClient = new QueryClient({
@@ -39,18 +52,17 @@ export function Providers({ children }: { children: React.ReactNode }) {
   const { resolvedTheme } = useTheme();
   const [mounted, setMounted] = React.useState(false);
 
-  // Prevent hydration mismatch by waiting until the component is mounted on the client
   React.useEffect(() => {
     setMounted(true);
   }, []);
 
   const appLightTheme = lightTheme({ 
-    accentColor: '#4f46e5', // Indigo-600
+    accentColor: '#4f46e5',
     borderRadius: 'large',
   });
 
   const appDarkTheme = darkTheme({ 
-    accentColor: '#4f46e5', // Indigo-600
+    accentColor: '#4f46e5',
     borderRadius: 'large',
   });
 
