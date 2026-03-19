@@ -286,12 +286,12 @@ const Header = ({ address, hasWallet, notifications = [], inbox = [], usdcBalanc
           <div className="flex items-center">
             <ConnectButton.Custom>
               {({ account, chain, openAccountModal, openChainModal, openConnectModal, mounted }) => {
-                // THE FIX: Sync RainbowKit's display state strictly with our app's hasWallet state
                 const connected = mounted && account && chain && hasWallet;
                 return (
                   <div style={{ transition: 'opacity 0.2s', opacity: mounted ? 1 : 0, pointerEvents: mounted ? 'auto' : 'none' }}>
                     {(() => {
-                      if (!connected) return <button onClick={openConnectModal} type="button" className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-1.5 px-3 sm:py-2.5 sm:px-4 rounded-lg transition-all shadow-md active:scale-95 text-[11px] sm:text-xs touch-manipulation">Connect Wallet</button>;
+                      // THE FIX: Removed active:scale-95 to prevent mobile touch cancellation
+                      if (!connected) return <button onClick={openConnectModal} type="button" className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-1.5 px-3 sm:py-2.5 sm:px-4 rounded-lg transition-all shadow-md text-[11px] sm:text-xs touch-manipulation">Connect Wallet</button>;
                       if (chain.unsupported) return <button onClick={openChainModal} type="button" className="bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-500/20 font-bold py-1.5 px-3 sm:py-2 sm:px-4 rounded-lg text-[11px] sm:text-xs touch-manipulation">Wrong network</button>;
                       return (
                         <div className="flex items-center gap-1.5 relative" ref={profileDropdownRef}>
@@ -532,7 +532,8 @@ export default function Home() {
               <ConnectButton.Custom>
                 {({ openConnectModal }) => (
                   <div style={{ transition: 'opacity 0.2s', opacity: mounted ? 1 : 0, pointerEvents: mounted ? 'auto' : 'none' }}>
-                    <button onClick={openConnectModal} type="button" className="px-8 py-3.5 bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg font-bold text-sm tracking-wide shadow-md active:scale-[0.98] flex items-center gap-2 touch-manipulation">
+                    {/* THE FIX: Removed active:scale-[0.98] to prevent mobile touch cancellation */}
+                    <button onClick={openConnectModal} type="button" className="px-8 py-3.5 bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg font-bold text-sm tracking-wide shadow-md flex items-center gap-2 touch-manipulation">
                       Launch Platform <ChevronRight size={16} />
                     </button>
                   </div>

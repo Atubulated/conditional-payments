@@ -20,7 +20,7 @@ const GUIDE_MODULES = [
         <ul className="list-disc pl-5 space-y-2">
           <li>The Receiver does the work and delivers the product.</li>
           <li>Once the 3-day cooldown expires, the Receiver is granted permission to click "Claim" and withdraw the funds.</li>
-          <li><strong>Protection:</strong> If the Receiver never accepts the job or ghosts you, the contract has a "Hard Deadline." Once that deadline passes, you are granted the authority to safely reclaim the funds back to your wallet.</li>
+          <li><strong>Protection:</strong> If the Receiver never accepts the job or ghost you, the contract has a "Hard Deadline." Once that deadline passes, you are granted the authority to safely reclaim the funds back to your wallet.</li>
         </ul>
         <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-700 mt-4">
           <p className="text-xs font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wider mb-2">Real World Example</p>
@@ -81,7 +81,6 @@ export default function Guide() {
   const [readGuides, setReadGuides] = useState<Set<number>>(new Set());
   const [activeModal, setActiveModal] = useState<number | null>(null);
 
-  // Fetch user progress on load
   useEffect(() => {
     if (address) {
       supabase.from('user_points')
@@ -90,7 +89,6 @@ export default function Guide() {
         .single()
         .then(({ data }) => {
           if (data?.read_guides) {
-            // Filter out the legacy '99' flag if it exists, we only care about guides 1, 2, and 3 now.
             const validGuides = data.read_guides.filter((id: number) => id !== 99);
             setReadGuides(new Set(validGuides));
           }
@@ -98,26 +96,19 @@ export default function Guide() {
     }
   }, [address]);
 
-  const handleOpenModal = (id: number) => {
-    setActiveModal(id);
-  };
-
-  const handleCloseModal = () => {
-    setActiveModal(null);
-  };
+  const handleOpenModal = (id: number) => setActiveModal(id);
+  const handleCloseModal = () => setActiveModal(null);
 
   const handleUnderstand = async () => {
     if (activeModal !== null) {
       const newSet = new Set(readGuides).add(activeModal);
       setReadGuides(newSet);
       
-      // Save to Supabase
       if (address) {
         await supabase.from('user_points').upsert({
           wallet_address: address.toLowerCase(),
           read_guides: Array.from(newSet)
         });
-        // Trigger a global update so the Quests page instantly unlocks the claim button
         window.dispatchEvent(new Event('xp-updated'));
       }
     }
@@ -129,23 +120,22 @@ export default function Guide() {
   return (
     <div className="w-full space-y-6 animate-fade-in pb-12">
       
-      {/* Header Banner */}
-      <div className="bg-slate-900 dark:bg-slate-900 rounded-2xl p-6 sm:p-8 text-white shadow-lg border border-slate-800 relative overflow-hidden">
+      {/* THE FIX: Replaced bg-slate-900 with responsive dark/light classes */}
+      <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 sm:p-8 text-slate-900 dark:text-white shadow-sm dark:shadow-lg border border-slate-200 dark:border-slate-800 relative overflow-hidden">
         <div className="absolute top-0 right-0 -mt-4 -mr-4 w-32 h-32 bg-indigo-500/10 rounded-full blur-3xl"></div>
         <div className="relative z-10 flex items-start gap-4">
-          <div className="w-12 h-12 bg-slate-800 border border-slate-700 rounded-xl flex items-center justify-center shrink-0">
-            <BookOpen className="w-6 h-6 text-indigo-400" />
+          <div className="w-12 h-12 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl flex items-center justify-center shrink-0">
+            <BookOpen className="w-6 h-6 text-indigo-500 dark:text-indigo-400" />
           </div>
           <div>
             <h2 className="text-xl sm:text-2xl font-black tracking-tight mb-2">Protocol Documentation</h2>
-            <p className="text-slate-400 text-sm leading-relaxed max-w-2xl font-medium">
+            <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed max-w-2xl font-medium">
               Custodex is an enterprise-grade escrow layer. Before interacting with the smart contracts, it is required that you understand the three core infrastructure types.
             </p>
           </div>
         </div>
       </div>
 
-      {/* Clickable Module Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {GUIDE_MODULES.map((mod) => {
           const isRead = readGuides.has(mod.id);
@@ -182,12 +172,10 @@ export default function Guide() {
         })}
       </div>
 
-      {/* Detailed Reading Modal */}
       {activeModal && activeModuleData && createPortal(
         <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-slate-900/40 dark:bg-black/80 backdrop-blur-sm animate-fade-in" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
           <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden ring-1 ring-black/5 dark:ring-white/5 flex flex-col max-h-[85vh]">
             
-            {/* Modal Header */}
             <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950/50">
               <div className="flex items-center gap-3">
                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
@@ -202,12 +190,10 @@ export default function Guide() {
               <button onClick={handleCloseModal} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 bg-slate-100 dark:bg-slate-800 p-1.5 rounded-md transition-colors"><X size={16} /></button>
             </div>
 
-            {/* Modal Body */}
             <div className="p-6 overflow-y-auto custom-scrollbar">
               {activeModuleData.longText}
             </div>
 
-            {/* Modal Footer */}
             <div className="p-5 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 flex justify-end">
               <button onClick={handleUnderstand} className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs tracking-wide shadow-sm transition-colors">
                 I Understand
@@ -217,7 +203,6 @@ export default function Guide() {
           </div>
         </div>, document.body
       )}
-
     </div>
   );
 }
