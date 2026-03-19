@@ -286,9 +286,9 @@ const Header = ({ address, hasWallet, notifications = [], inbox = [], usdcBalanc
           <div className="flex items-center">
             <ConnectButton.Custom>
               {({ account, chain, openAccountModal, openChainModal, openConnectModal, mounted }) => {
-                const connected = mounted && account && chain;
+                // THE FIX: Sync RainbowKit's display state strictly with our app's hasWallet state
+                const connected = mounted && account && chain && hasWallet;
                 return (
-                  // THE FIX: Added pointer-events manipulation based on mount state to fix mobile ghost clicks
                   <div style={{ transition: 'opacity 0.2s', opacity: mounted ? 1 : 0, pointerEvents: mounted ? 'auto' : 'none' }}>
                     {(() => {
                       if (!connected) return <button onClick={openConnectModal} type="button" className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-1.5 px-3 sm:py-2.5 sm:px-4 rounded-lg transition-all shadow-md active:scale-95 text-[11px] sm:text-xs touch-manipulation">Connect Wallet</button>;
@@ -356,8 +356,6 @@ export default function Home() {
     discordConnected: false, telegramConnected: false 
   });
 
-  const [metrics, setMetrics] = useState({ escrows: 1042, users: 201, volume: 45200 });
-
   const { data: balanceData } = useReadContract({
     address: USDC_ADDRESS as `0x${string}`,
     abi: ERC20_ABI,
@@ -373,18 +371,6 @@ export default function Home() {
     if (status === 'connected' || status === 'disconnected') { setIsSettled(true); clearTimeout(failsafeTimer); }
     return () => clearTimeout(failsafeTimer);
   }, [status]);
-
-  useEffect(() => {
-    if (address) return; 
-    const interval = setInterval(() => {
-      setMetrics(prev => ({
-        escrows: prev.escrows + (Math.random() > 0.7 ? 1 : 0),
-        users: prev.users + (Math.random() > 0.8 ? 1 : 0),
-        volume: prev.volume + (Math.random() > 0.5 ? Math.floor(Math.random() * 50) : 0)
-      }));
-    }, 3000);
-    return () => clearInterval(interval);
-  }, [address]);
 
   const fetchUserStats = useCallback(async () => {
     if (address) {
@@ -545,7 +531,6 @@ export default function Home() {
             <div className="pt-2 pb-6 flex flex-col items-center w-full relative z-10">
               <ConnectButton.Custom>
                 {({ openConnectModal }) => (
-                  // THE FIX: Added pointer-events-auto here as well
                   <div style={{ transition: 'opacity 0.2s', opacity: mounted ? 1 : 0, pointerEvents: mounted ? 'auto' : 'none' }}>
                     <button onClick={openConnectModal} type="button" className="px-8 py-3.5 bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg font-bold text-sm tracking-wide shadow-md active:scale-[0.98] flex items-center gap-2 touch-manipulation">
                       Launch Platform <ChevronRight size={16} />
