@@ -3,12 +3,12 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useAccount, useDisconnect } from 'wagmi';
-import { Award, Flame, Copy, Wallet, Loader2, Check, UserPlus, Image as ImageIcon, AlertTriangle, Pencil, X } from 'lucide-react';
+import { Award, Flame, Copy, Wallet, Loader2, Check, UserPlus, AlertTriangle, Pencil, X } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import { useToast } from './Toast';
+import ProfileAvatar from './ProfileAvatar'; // Import the new Avatar component
 
 const truncateAddress = (addr: string) => addr ? `${addr.slice(0, 6)}...${addr.slice(-4)}` : '';
-const AVATARS = ["bg-indigo-500", "bg-emerald-500", "bg-rose-500", "bg-amber-500", "bg-slate-700"];
 
 const DiscordIcon = ({ size = 24, className = "" }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className} xmlns="http://www.w3.org/2000/svg">
@@ -35,11 +35,9 @@ export default function Profile({ userStats, fetchUserStats }: any) {
   const [showEditModal, setShowEditModal] = useState(false);
 
   const [usernameInput, setUsernameInput] = useState(userStats?.username || '');
-  const [selectedAvatar, setSelectedAvatar] = useState(userStats?.avatarId || 0);
 
   useEffect(() => {
     setUsernameInput(userStats?.username || '');
-    setSelectedAvatar(userStats?.avatarId || 0);
   }, [userStats]);
 
   const handleCopyHash = (hash: string) => {
@@ -56,7 +54,6 @@ export default function Profile({ userStats, fetchUserStats }: any) {
       await supabase.from('user_points').upsert({
         wallet_address: address.toLowerCase(),
         username: usernameInput.trim(),
-        avatar_id: selectedAvatar
       });
       showToast('success', 'Profile settings saved');
       await fetchUserStats();
@@ -102,6 +99,8 @@ export default function Profile({ userStats, fetchUserStats }: any) {
     try {
       await supabase.from('user_points').delete().eq('wallet_address', address.toLowerCase());
       await supabase.from('user_read_state').delete().eq('wallet_address', address.toLowerCase());
+      // Also delete the avatar profile data
+      await supabase.from('profiles').delete().eq('wallet_address', address.toLowerCase());
       
       showToast('success', 'Account permanently deleted');
       setShowDeleteModal(false);
@@ -112,18 +111,19 @@ export default function Profile({ userStats, fetchUserStats }: any) {
     }
   };
 
+  // Prevent rendering if wallet isn't connected
   if (!address) return null;
-  const userAvatarClass = AVATARS[userStats?.avatarId || 0];
 
   return (
     <div className="w-full animate-fade-in pb-8 space-y-4 relative flex flex-col items-center">
       
       {/* Top Banner */}
       <div className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className={`w-12 h-12 rounded-full ${userAvatarClass} shrink-0 ring-4 ring-slate-50 dark:ring-slate-950 flex items-center justify-center text-white text-base font-bold`}>
-            {userStats?.username ? userStats.username.charAt(0).toUpperCase() : <Wallet size={16} />}
-          </div>
+        <div className="flex items-center gap-4">
+          
+          {/* Injecting the fully functional ProfileAvatar Component here */}
+          <ProfileAvatar />
+          
           <div>
             <h2 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
               {userStats?.username || 'Anonymous User'}
@@ -137,14 +137,15 @@ export default function Profile({ userStats, fetchUserStats }: any) {
               <button 
                 onClick={() => setShowEditModal(true)} 
                 className="text-slate-400 hover:text-indigo-500 transition-colors flex items-center gap-1"
-                title="Edit Profile"
+                title="Edit Username"
               >
                 <Pencil size={12} />
-                <span className="text-[9px] font-bold uppercase tracking-wider hidden sm:block">Edit</span>
+                <span className="text-[9px] font-bold uppercase tracking-wider hidden sm:block">Edit Name</span>
               </button>
             </div>
           </div>
         </div>
+        
         <div className="flex items-center gap-5 sm:gap-6 bg-slate-50 dark:bg-slate-950/50 py-2 px-4 rounded-xl border border-slate-100 dark:border-slate-800">
           <div className="flex flex-col items-center">
             <span className="text-lg font-black text-indigo-600 dark:text-indigo-400">{userStats?.xp || 0}</span>
@@ -232,14 +233,14 @@ export default function Profile({ userStats, fetchUserStats }: any) {
         </div>
       </div>
 
-      {/* Identity Settings Modal */}
+      {/* Simplified Identity Settings Modal (Username Only) */}
       {showEditModal && createPortal(
         <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-slate-900/60 dark:bg-black/80 backdrop-blur-sm animate-fade-in">
           <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl ring-1 ring-black/5 dark:ring-white/5 border border-slate-200 dark:border-slate-800">
             <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950/50">
               <div>
-                <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm">Edit Profile</h3>
-                <p className="text-[10px] text-slate-500 mt-0.5">Customize your public identity.</p>
+                <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm">Edit Username</h3>
+                <p className="text-[10px] text-slate-500 mt-0.5">Customize your public display name.</p>
               </div>
               <button onClick={() => setShowEditModal(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1.5 rounded-md transition-colors">
                 <X size={16} />
@@ -258,23 +259,10 @@ export default function Profile({ userStats, fetchUserStats }: any) {
                 />
               </div>
 
-              <div className="space-y-2">
-                <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2"><ImageIcon size={12}/> Profile Color</label>
-                <div className="flex gap-3 justify-between">
-                  {AVATARS.map((bgClass, idx) => (
-                    <button 
-                      key={idx} 
-                      onClick={() => setSelectedAvatar(idx)}
-                      className={`w-10 h-10 rounded-full ${bgClass} transition-all duration-200 ${selectedAvatar === idx ? 'ring-4 ring-indigo-500 ring-offset-2 dark:ring-offset-slate-900 scale-110' : 'opacity-60 hover:opacity-100 hover:scale-105'}`}
-                    />
-                  ))}
-                </div>
-              </div>
-
               <div className="pt-3 border-t border-slate-100 dark:border-slate-800/50">
                 <button 
                   onClick={handleSaveProfile} 
-                  disabled={isSavingProfile || (usernameInput === userStats?.username && selectedAvatar === userStats?.avatarId) || usernameInput.trim().length < 3}
+                  disabled={isSavingProfile || usernameInput === userStats?.username || usernameInput.trim().length < 3}
                   className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm transition-all disabled:opacity-50 active:scale-95 flex items-center justify-center gap-2 shadow-sm"
                 >
                   {isSavingProfile ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
