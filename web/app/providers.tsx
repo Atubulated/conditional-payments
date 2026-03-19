@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { WagmiProvider } from 'wagmi';
+import { WagmiProvider, http } from 'wagmi';
 import {
   RainbowKitProvider,
   getDefaultConfig,
@@ -13,8 +13,9 @@ import {
   metaMaskWallet,
   walletConnectWallet,
   rabbyWallet,
+  trustWallet,
 } from '@rainbow-me/rainbowkit/wallets';
-import { mainnet } from 'wagmi/chains'; // THE FIX: Importing a standard chain
+import { mainnet } from 'wagmi/chains';
 import { type Chain } from 'wagmi/chains';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useTheme } from 'next-themes';
@@ -32,13 +33,19 @@ const arcTestnet: Chain = {
 const config = getDefaultConfig({
   appName: 'Custodex',
   projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? 'YOUR_PROJECT_ID',
-  // THE FIX: Adding mainnet so WalletConnect v2 can successfully handshake
-  chains: [arcTestnet, mainnet],
+  // THE FIX: mainnet MUST be first so the WalletConnect handshake uses a fast, reliable RPC.
+  chains: [mainnet, arcTestnet],
+  // THE FIX: Force a 5-second timeout on Arc Testnet so it can never hang the app for 70 seconds again.
+  transports: {
+    [mainnet.id]: http(),
+    [arcTestnet.id]: http('https://rpc.testnet.arc.network', { timeout: 5000 }),
+  },
   ssr: true,
   wallets: [
     {
-      groupName: 'Popular',
-      wallets: [rainbowWallet, rabbyWallet, metaMaskWallet, walletConnectWallet],
+      groupName: 'Recommended',
+      // Added TrustWallet as it is highly popular on mobile and bypasses the WC modal entirely
+      wallets: [rainbowWallet, metaMaskWallet, rabbyWallet, trustWallet, walletConnectWallet],
     },
   ],
 });
@@ -72,7 +79,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <QueryClientProvider client={queryClient}>
         <RainbowKitProvider 
           theme={mounted && resolvedTheme === 'dark' ? appDarkTheme : appLightTheme}
-          initialChain={arcTestnet} // Force it to default to Arc
+          initialChain={arcTestnet} // Forces the UI to default to Arc Testnet after the handshake
         >
           <ToastProvider>
             {children}
