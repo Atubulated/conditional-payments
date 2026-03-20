@@ -28,18 +28,20 @@ const TelegramIcon = ({ size = 24, className = "" }) => (
   </svg>
 );
 
+const TwitterIcon = ({ size = 24, className = "" }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className} xmlns="http://www.w3.org/2000/svg">
+    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.737-8.835L1.254 2.25H8.08l4.253 5.622 5.911-5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+  </svg>
+);
+
 const TelegramAuthWidget = ({ botName, onAuth }: { botName: string, onAuth: (user: any) => void }) => {
-  
   useEffect(() => {
-    // Handle the callback when Telegram redirects back to your site
     const params = new URLSearchParams(window.location.hash.replace('#', '?'));
     const tgAuthResult = params.get('tgAuthResult');
-    
     if (tgAuthResult) {
       try {
         const userData = JSON.parse(atob(tgAuthResult));
         onAuth(userData);
-        // Clean up the URL
         window.history.replaceState({}, '', window.location.pathname + window.location.search);
       } catch (e) {
         console.error('Telegram auth parse error:', e);
@@ -77,14 +79,12 @@ export default function Profile({ userStats, fetchUserStats }: any) {
   const { address } = useAccount();
   const { disconnect } = useDisconnect();
   const { showToast } = useToast();
-  
+
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isUnlinking, setIsUnlinking] = useState(false);
   const [copiedHash, setCopiedHash] = useState<string | null>(null);
-  
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-
   const [usernameInput, setUsernameInput] = useState(userStats?.username || '');
   const isProcessingAuth = useRef(false);
 
@@ -95,31 +95,29 @@ export default function Profile({ userStats, fetchUserStats }: any) {
   useEffect(() => {
     if (!address) return;
 
-    const processDiscordLogin = async (session: any) => {
+    const processOAuthLogin = async (session: any) => {
       if (isProcessingAuth.current) return;
       isProcessingAuth.current = true;
 
-      if (session?.user?.app_metadata?.provider === 'discord') {
+      const provider = session?.user?.app_metadata?.provider;
+
+      // Handle Discord
+      if (provider === 'discord') {
         try {
-          const discordName = session.user.user_metadata.custom_claims?.global_name 
-                           || session.user.user_metadata.name 
+          const discordName = session.user.user_metadata.custom_claims?.global_name
+                           || session.user.user_metadata.name
                            || session.user.user_metadata.full_name
                            || 'Discord User';
 
           const { error } = await supabase
             .from('user_points')
-            .update({
-              discord_connected: true,
-              discord_username: discordName
-            })
+            .update({ discord_connected: true, discord_username: discordName })
             .eq('wallet_address', address.toLowerCase());
 
           if (error) throw error;
-
           showToast('success', 'Discord linked successfully!');
-          await fetchUserStats(); 
-          await supabase.auth.signOut(); 
-
+          await fetchUserStats();
+          await supabase.auth.signOut();
         } catch (error: any) {
           console.error('Error linking Discord:', error);
           showToast('error', 'Database Error', error.message || 'Failed to save Discord info.');
@@ -127,15 +125,40 @@ export default function Profile({ userStats, fetchUserStats }: any) {
           setTimeout(() => { isProcessingAuth.current = false; }, 2000);
         }
       }
+
+      // Handle Twitter
+      if (provider === 'twitter') {
+        try {
+          const twitterName = session.user.user_metadata.user_name
+                           || session.user.user_metadata.name
+                           || 'Twitter User';
+          const twitterUsername = `@${twitterName}`;
+
+          const { error } = await supabase
+            .from('user_points')
+            .update({ twitter_connected: true, twitter_username: twitterUsername })
+            .eq('wallet_address', address.toLowerCase());
+
+          if (error) throw error;
+          showToast('success', 'Twitter/X linked successfully!');
+          await fetchUserStats();
+          await supabase.auth.signOut();
+        } catch (error: any) {
+          console.error('Error linking Twitter:', error);
+          showToast('error', 'Database Error', error.message || 'Failed to save Twitter info.');
+        } finally {
+          setTimeout(() => { isProcessingAuth.current = false; }, 2000);
+        }
+      }
     };
 
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) processDiscordLogin(session);
+      if (session) processOAuthLogin(session);
     });
 
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session) {
-        processDiscordLogin(session);
+        processOAuthLogin(session);
       }
     });
 
@@ -151,8 +174,7 @@ export default function Profile({ userStats, fetchUserStats }: any) {
   };
 
   const handleSaveProfile = async () => {
-    if (!address || usernameInput.trim().length < 3) return; 
-    
+    if (!address || usernameInput.trim().length < 3) return;
     setIsSavingProfile(true);
     try {
       await supabase.from('user_points').upsert({
@@ -161,7 +183,7 @@ export default function Profile({ userStats, fetchUserStats }: any) {
       });
       showToast('success', 'Profile settings saved');
       await fetchUserStats();
-      setShowEditModal(false); 
+      setShowEditModal(false);
     } catch (e: any) {
       showToast('error', 'Failed to save');
     } finally {
@@ -173,9 +195,7 @@ export default function Profile({ userStats, fetchUserStats }: any) {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'discord',
-        options: {
-          redirectTo: `${window.location.origin}/?tab=profile`, 
-        },
+        options: { redirectTo: `${window.location.origin}/?tab=profile` },
       });
       if (error) throw error;
     } catch (e: any) {
@@ -183,21 +203,27 @@ export default function Profile({ userStats, fetchUserStats }: any) {
     }
   };
 
+  const handleTwitterConnect = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'twitter',
+        options: { redirectTo: `${window.location.origin}/?tab=profile` },
+      });
+      if (error) throw error;
+    } catch (e: any) {
+      showToast('error', 'Could not reach Twitter/X.');
+    }
+  };
+
   const handleTelegramConnect = async (telegramUser: any) => {
     if (!address) return;
     try {
       const tUsername = telegramUser.username ? `@${telegramUser.username}` : telegramUser.first_name || 'Telegram User';
-
       const { error } = await supabase
         .from('user_points')
-        .update({
-          telegram_connected: true,
-          telegram_username: tUsername
-        })
+        .update({ telegram_connected: true, telegram_username: tUsername })
         .eq('wallet_address', address.toLowerCase());
-
       if (error) throw error;
-
       showToast('success', 'Telegram linked successfully!');
       await fetchUserStats();
     } catch (e: any) {
@@ -213,7 +239,6 @@ export default function Profile({ userStats, fetchUserStats }: any) {
       await supabase.from('user_points').delete().eq('wallet_address', address.toLowerCase());
       await supabase.from('user_read_state').delete().eq('wallet_address', address.toLowerCase());
       await supabase.from('profiles').delete().eq('wallet_address', address.toLowerCase());
-      
       showToast('success', 'Account permanently deleted');
       setShowDeleteModal(false);
       disconnect();
@@ -227,13 +252,11 @@ export default function Profile({ userStats, fetchUserStats }: any) {
 
   return (
     <div className="w-full animate-fade-in pb-8 space-y-4 relative flex flex-col items-center">
-      
+
       {/* Top Banner */}
       <div className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
         <div className="flex items-center gap-4">
-          
           <ProfileAvatar />
-          
           <div>
             <h2 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
               {userStats?.username || 'Anonymous User'}
@@ -244,8 +267,8 @@ export default function Profile({ userStats, fetchUserStats }: any) {
                 {copiedHash === address ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
               </button>
               <div className="w-px h-3 bg-slate-300 dark:bg-slate-700 mx-1"></div>
-              <button 
-                onClick={() => setShowEditModal(true)} 
+              <button
+                onClick={() => setShowEditModal(true)}
                 className="text-slate-400 hover:text-indigo-500 transition-colors flex items-center gap-1"
                 title="Edit Username"
               >
@@ -255,7 +278,6 @@ export default function Profile({ userStats, fetchUserStats }: any) {
             </div>
           </div>
         </div>
-        
         <div className="flex items-center gap-5 sm:gap-6 bg-slate-50 dark:bg-slate-950/50 py-2 px-4 rounded-xl border border-slate-100 dark:border-slate-800">
           <div className="flex flex-col items-center">
             <span className="text-lg font-black text-indigo-600 dark:text-indigo-400">{userStats?.xp || 0}</span>
@@ -275,7 +297,8 @@ export default function Profile({ userStats, fetchUserStats }: any) {
           <p className="text-xs text-slate-500 mt-0.5">Link your social profiles and manage your Web3 wallets.</p>
         </div>
         <div className="p-4 sm:p-5 space-y-4">
-          
+
+          {/* Discord */}
           <div className="flex flex-col gap-2 pb-4 border-b border-slate-100 dark:border-slate-800/50">
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-2.5">
@@ -299,6 +322,32 @@ export default function Profile({ userStats, fetchUserStats }: any) {
             )}
           </div>
 
+          {/* Twitter / X */}
+          <div className="flex flex-col gap-2 pb-4 border-b border-slate-100 dark:border-slate-800/50">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-black/10 dark:bg-white/10 text-black dark:text-white flex items-center justify-center">
+                  <TwitterIcon size={16}/>
+                </div>
+                <span className="text-sm font-bold text-slate-900 dark:text-slate-100">Twitter / X</span>
+              </div>
+              {userStats?.twitterConnected ? (
+                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-1 rounded-md">
+                  {userStats?.twitterUsername || '@user'}
+                </span>
+              ) : (
+                <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-md">Not Linked</span>
+              )}
+            </div>
+            {!userStats?.twitterConnected && (
+              <button onClick={handleTwitterConnect} className="w-fit px-6 py-2 bg-black hover:bg-zinc-800 text-white text-[11px] font-bold rounded-lg transition-colors shadow-sm mt-1 flex items-center gap-2">
+                <TwitterIcon size={13} />
+                Connect Twitter / X
+              </button>
+            )}
+          </div>
+
+          {/* Telegram */}
           <div className="flex flex-col gap-2 pb-4 border-b border-slate-100 dark:border-slate-800/50">
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-2.5">
@@ -316,25 +365,28 @@ export default function Profile({ userStats, fetchUserStats }: any) {
               )}
             </div>
             {!userStats?.telegramConnected && (
-              <TelegramAuthWidget 
-                botName="Custodex_Auth_Bot" 
-                onAuth={handleTelegramConnect} 
+              <TelegramAuthWidget
+                botName="Custodex_Auth_Bot"
+                onAuth={handleTelegramConnect}
               />
             )}
           </div>
 
+          {/* Primary Wallet */}
           <div className="flex flex-col gap-2 pt-1">
             <div className="flex justify-between items-start">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mt-0.5"><Wallet size={16}/></div>
+                <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mt-0.5">
+                  <Wallet size={16}/>
+                </div>
                 <div className="flex flex-col">
                   <span className="text-sm font-bold text-slate-900 dark:text-slate-100">Primary Wallet</span>
                   <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400 mt-0.5 break-all">{address}</span>
                 </div>
               </div>
             </div>
-            <button 
-              onClick={() => setShowDeleteModal(true)} 
+            <button
+              onClick={() => setShowDeleteModal(true)}
               className="w-fit px-6 py-2 border border-rose-300 dark:border-rose-700/50 text-rose-600 dark:text-rose-400 rounded-lg text-[11px] font-bold hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors flex justify-center items-center gap-2 mt-1"
             >
               Unlink Wallet
@@ -344,7 +396,7 @@ export default function Profile({ userStats, fetchUserStats }: any) {
         </div>
       </div>
 
-      {/* Simplified Identity Settings Modal (Username Only) */}
+      {/* Edit Username Modal */}
       {showEditModal && createPortal(
         <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-slate-900/60 dark:bg-black/80 backdrop-blur-sm animate-fade-in">
           <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl ring-1 ring-black/5 dark:ring-white/5 border border-slate-200 dark:border-slate-800">
@@ -358,21 +410,19 @@ export default function Profile({ userStats, fetchUserStats }: any) {
               </button>
             </div>
             <div className="p-5 space-y-5">
-              
               <div className="space-y-1.5">
                 <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2"><UserPlus size={12}/> Display Name</label>
-                <input 
-                  type="text" 
-                  placeholder="Enter a username..." 
+                <input
+                  type="text"
+                  placeholder="Enter a username..."
                   value={usernameInput}
                   onChange={(e) => setUsernameInput(e.target.value)}
                   className="w-full bg-transparent border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all"
                 />
               </div>
-
               <div className="pt-3 border-t border-slate-100 dark:border-slate-800/50">
-                <button 
-                  onClick={handleSaveProfile} 
+                <button
+                  onClick={handleSaveProfile}
                   disabled={isSavingProfile || usernameInput === userStats?.username || usernameInput.trim().length < 3}
                   className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm transition-all disabled:opacity-50 active:scale-95 flex items-center justify-center gap-2 shadow-sm"
                 >
@@ -380,14 +430,13 @@ export default function Profile({ userStats, fetchUserStats }: any) {
                   {isSavingProfile ? 'Saving...' : 'Save Changes'}
                 </button>
               </div>
-
             </div>
           </div>
         </div>,
         document.body
       )}
 
-      {/* Custom Delete Confirmation Modal */}
+      {/* Delete Confirmation Modal */}
       {showDeleteModal && createPortal(
         <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-slate-900/60 dark:bg-black/80 backdrop-blur-sm animate-fade-in">
           <div className="bg-white dark:bg-slate-900 p-6 sm:p-8 rounded-3xl max-w-sm w-full space-y-6 shadow-2xl ring-1 ring-black/5 dark:ring-white/5 border border-slate-200 dark:border-slate-800">
@@ -403,15 +452,15 @@ export default function Profile({ userStats, fetchUserStats }: any) {
               </div>
             </div>
             <div className="flex gap-3">
-              <button 
-                onClick={() => setShowDeleteModal(false)} 
+              <button
+                onClick={() => setShowDeleteModal(false)}
                 disabled={isUnlinking}
                 className="flex-1 py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl font-bold text-sm transition-colors disabled:opacity-50"
               >
                 Cancel
               </button>
-              <button 
-                onClick={executeUnlinkWallet} 
+              <button
+                onClick={executeUnlinkWallet}
                 disabled={isUnlinking}
                 className="flex-1 py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold text-sm shadow-md transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
               >
