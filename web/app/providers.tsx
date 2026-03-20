@@ -26,7 +26,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useTheme } from 'next-themes';
 import { ToastProvider } from './Toast';
 
-// 1. Define our custom Arc Testnet
 const arcTestnet: Chain = {
   id: 5042002,
   name: 'Arc Testnet',
@@ -36,14 +35,13 @@ const arcTestnet: Chain = {
   testnet: true,
 };
 
-// 2. Configure RainbowKit with prioritized wallet lists
 const config = getDefaultConfig({
   appName: 'Custodex',
   projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? 'YOUR_PROJECT_ID',
   chains: [mainnet, arcTestnet],
   transports: {
     [mainnet.id]: http(),
-    [arcTestnet.id]: http(),
+    [arcTestnet.id]: http('https://rpc.testnet.arc.network', { timeout: 5000 }),
   },
   ssr: true,
   wallets: [
@@ -84,12 +82,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
     setMounted(true);
   }, []);
 
-  const appLightTheme = lightTheme({ 
+  const appLightTheme = lightTheme({
     accentColor: '#4f46e5',
     borderRadius: 'large',
   });
 
-  const appDarkTheme = darkTheme({ 
+  const appDarkTheme = darkTheme({
     accentColor: '#4f46e5',
     borderRadius: 'large',
   });
@@ -97,8 +95,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider 
+        <RainbowKitProvider
           theme={mounted && resolvedTheme === 'dark' ? appDarkTheme : appLightTheme}
+          initialChain={arcTestnet}
         >
           <ToastProvider>
             {children}
