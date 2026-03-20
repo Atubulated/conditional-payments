@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useAccount, useDisconnect } from 'wagmi';
 import { Award, Flame, Copy, Wallet, Loader2, Check, UserPlus, AlertTriangle, Pencil, X } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import { useToast } from './Toast';
-import ProfileAvatar from './ProfileAvatar'; // Import the new Avatar component
+import ProfileAvatar from './ProfileAvatar';
 
 const truncateAddress = (addr: string) => addr ? `${addr.slice(0, 6)}...${addr.slice(-4)}` : '';
 
@@ -35,10 +35,71 @@ export default function Profile({ userStats, fetchUserStats }: any) {
   const [showEditModal, setShowEditModal] = useState(false);
 
   const [usernameInput, setUsernameInput] = useState(userStats?.username || '');
+  const isProcessingAuth = useRef(false);
 
   useEffect(() => {
     setUsernameInput(userStats?.username || '');
   }, [userStats]);
+
+  // Listen for the user returning from Discord OAuth
+  useEffect(() => {
+    if (!address) return;
+
+    const processDiscordLogin = async (session: any) => {
+      // The Bouncer: Stop double-toasts by making sure this only runs once
+      if (isProcessingAuth.current) return;
+      isProcessingAuth.current = true;
+
+      if (session?.user?.app_metadata?.provider === 'discord') {
+        try {
+          const discordName = session.user.user_metadata.custom_claims?.global_name 
+                           || session.user.user_metadata.name 
+                           || session.user.user_metadata.full_name
+                           || 'Discord User';
+
+          // Use .update() instead of .upsert(), and actually check for errors!
+          const { error } = await supabase
+            .from('user_points')
+            .update({
+              discord_connected: true,
+              discord_username: discordName
+            })
+            .eq('wallet_address', address.toLowerCase());
+
+          // If the database complains, THROW the error so we don't show a fake success toast
+          if (error) throw error;
+
+          showToast('success', 'Discord linked successfully!');
+          await fetchUserStats(); // Fetch the fresh data from the DB to update the UI
+          await supabase.auth.signOut(); // Clean up
+
+        } catch (error: any) {
+          console.error('Error linking Discord:', error);
+          showToast('error', 'Database Error', error.message || 'Failed to save Discord info.');
+        } finally {
+          // Unlock the bouncer after a short delay
+          setTimeout(() => { isProcessingAuth.current = false; }, 2000);
+        }
+      }
+    };
+
+    // 1. Check instantly on load (Catches it if Supabase was faster than React)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) processDiscordLogin(session);
+    });
+
+    // 2. Set up the listener (Catches it if React was faster than Supabase)
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        processDiscordLogin(session);
+      }
+    });
+
+    // Cleanup the listener when the component unmounts
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, [address]); // Re-run if their wallet address changes
 
   const handleCopyHash = (hash: string) => {
     navigator.clipboard.writeText(hash);
@@ -66,16 +127,16 @@ export default function Profile({ userStats, fetchUserStats }: any) {
   };
 
   const handleDiscordConnect = async () => {
-    if (!address) return;
     try {
-      await supabase.from('user_points').upsert({
-        wallet_address: address.toLowerCase(),
-        discord_connected: true
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'discord',
+        options: {
+          redirectTo: `${window.location.origin}/?tab=profile`, 
+        },
       });
-      showToast('success', 'Discord linked successfully');
-      await fetchUserStats();
-    } catch (e) {
-      showToast('error', 'Discord link failed');
+      if (error) throw error;
+    } catch (e: any) {
+      showToast('error', 'Could not reach Discord.');
     }
   };
 
@@ -121,7 +182,6 @@ export default function Profile({ userStats, fetchUserStats }: any) {
       <div className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
         <div className="flex items-center gap-4">
           
-          {/* Injecting the fully functional ProfileAvatar Component here */}
           <ProfileAvatar />
           
           <div>

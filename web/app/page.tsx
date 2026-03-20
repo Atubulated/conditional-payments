@@ -305,7 +305,6 @@ const Header = ({ address, hasWallet, notifications = [], inbox = [], usdcBalanc
                             {userStats?.username && <span className="text-[10px] font-bold hidden sm:block pr-1 truncate max-w-[80px]">{userStats.username}</span>}
                           </button>
 
-                          {/* REVERTED: Removed feedback button from this dropdown entirely */}
                           {isProfileDropdownOpen && (
                             <div className="absolute top-[120%] right-0 w-48 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl z-50 overflow-hidden animate-fade-in">
                               <div className="p-2 flex flex-col gap-1">
@@ -342,7 +341,6 @@ export default function Home() {
   const { address, status } = useAccount();
   const { showToast } = useToast();
   const [mounted, setMounted] = useState(false);
-  const [isSettled, setIsSettled] = useState(false);
   const [activeTab, setActiveTab] = useState('create');
   
   const [pendingPayments, setPendingPayments] = useState<Payment[]>([]);
@@ -368,10 +366,24 @@ export default function Home() {
 
   useEffect(() => {
     setMounted(true);
-    const failsafeTimer = setTimeout(() => setIsSettled(true), 800);
-    if (status === 'connected' || status === 'disconnected') { setIsSettled(true); clearTimeout(failsafeTimer); }
-    return () => clearTimeout(failsafeTimer);
-  }, [status]);
+  }, []);
+
+  // Listen for Discord callbacks on page load
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const searchParams = new URLSearchParams(window.location.search);
+      const hash = window.location.hash;
+      
+      // Check for our custom query param OR the Supabase access token in the hash
+      if (searchParams.get('tab') === 'profile' || hash.includes('access_token')) {
+        setActiveTab('profile'); 
+        
+        // Clean up the URL by removing ?tab=profile but keep the hash for Supabase
+        const cleanUrl = window.location.pathname + hash;
+        window.history.replaceState(null, '', cleanUrl);
+      }
+    }
+  }, []);
 
   const fetchUserStats = useCallback(async () => {
     if (address) {
@@ -475,19 +487,22 @@ export default function Home() {
   }, [address]);
 
   useEffect(() => {
-    if (address && isSettled) {
+    if (address && status === 'connected') {
       fetchPendingPayments();
     }
-  }, [address, isSettled, fetchPendingPayments]);
+  }, [address, status, fetchPendingPayments]);
 
-  if (!mounted || !isSettled) return (
+  // THE FIX: Listen strictly to Wagmi's built in connection states, no timers.
+  const isAuthLoading = !mounted || status === 'connecting' || status === 'reconnecting';
+
+  if (isAuthLoading) return (
     <div className="min-h-[100dvh] flex flex-col items-center justify-center relative z-50">
       <div className="w-14 h-14 rounded-xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-600/30 mb-6 animate-pulse"><ShieldCheck className="w-8 h-8 text-white" strokeWidth={2.5} /></div>
       <div className="flex items-center gap-3 text-indigo-900 dark:text-indigo-100 font-bold text-xs tracking-widest uppercase"><Loader2 className="w-4 h-4 animate-spin text-indigo-600 dark:text-indigo-400" />Initializing Protocol</div>
     </div>
   );
 
-  const hasWallet = mounted && !!address && status === 'connected';
+  const hasWallet = !!address && status === 'connected';
 
   return (
     <div className="min-h-[100dvh] flex flex-col font-sans overflow-x-hidden relative selection:bg-indigo-100 dark:selection:bg-indigo-900 selection:text-indigo-900 dark:selection:text-indigo-100">
@@ -543,7 +558,6 @@ export default function Home() {
           </div>
         ) : (
           <div className="animate-fade-in w-full flex flex-col items-center gap-4">
-            {/* REVERTED: Tab logic put back exactly how it was */}
             {['profile', 'quests', 'leaderboard'].includes(activeTab) ? (
               <div className="w-full flex flex-col">
                 <div className="w-full flex justify-start mb-2">
@@ -599,7 +613,6 @@ export default function Home() {
         </div>
       </footer>
 
-      {/* THE FIX: Now it ONLY shows if the user is connected */}
       {hasWallet && <FeedbackForm />}
     </div>
   );
