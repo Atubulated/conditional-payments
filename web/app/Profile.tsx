@@ -32,13 +32,13 @@ const TelegramIcon = ({ size = 24, className = "" }) => (
 const TelegramAuthWidget = ({ botName, onAuth }: { botName: string, onAuth: (user: any) => void }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const onAuthRef = useRef(onAuth);
+  const [isLoaded, setIsLoaded] = useState(false); // ✅ NEW
 
   useEffect(() => {
     onAuthRef.current = onAuth;
   }, [onAuth]);
 
   useEffect(() => {
-    // MY FIX: Changed from 'Custodex_Auth_Bot' back to the generic placeholder check!
     if (!botName || botName === 'YOUR_BOT_USERNAME_HERE') return;
 
     window.onTelegramAuth = (user) => {
@@ -53,33 +53,30 @@ const TelegramAuthWidget = ({ botName, onAuth }: { botName: string, onAuth: (use
     const script = document.createElement('script');
     script.src = 'https://telegram.org/js/telegram-widget.js?22';
     script.setAttribute('data-telegram-login', botName);
-    script.setAttribute('data-size', 'large'); 
+    script.setAttribute('data-size', 'medium'); // ✅ CHANGED
     script.setAttribute('data-radius', '8');
     script.setAttribute('data-request-access', 'write');
-    script.setAttribute('data-userpic', 'false'); 
+    script.setAttribute('data-userpic', 'false');
     script.setAttribute('data-onauth', 'onTelegramAuth(user)');
     script.async = true;
+    script.onload = () => setIsLoaded(true); // ✅ NEW
 
     container.appendChild(script);
 
     return () => {
-      if (container) {
-        container.innerHTML = '';
-      }
+      if (container) container.innerHTML = '';
     };
-  }, [botName]); 
-
-  // MY FIX: Changed here too!
-  if (!botName || botName === 'YOUR_BOT_USERNAME_HERE') {
-    return (
-      <button disabled className="w-fit px-6 py-2 bg-[#24A1DE]/50 cursor-not-allowed text-white text-[11px] font-bold rounded-lg shadow-sm mt-1">
-        ⚠️ Add Bot Name to Code
-      </button>
-    );
-  }
+  }, [botName]);
 
   return (
     <div className="mt-1 flex items-center justify-start rounded-lg overflow-hidden w-fit">
+      {/* ✅ NEW: Show placeholder while widget loads */}
+      {!isLoaded && (
+        <button disabled className="px-4 py-2 bg-[#24A1DE]/40 text-white text-[11px] font-bold rounded-lg flex items-center gap-2">
+          <Loader2 size={12} className="animate-spin" />
+          Loading...
+        </button>
+      )}
       <div ref={containerRef} />
     </div>
   );
