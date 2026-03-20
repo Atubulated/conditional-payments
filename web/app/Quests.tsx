@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAccount } from 'wagmi';
-import { Award, Flame, CalendarCheck, Wallet, Loader2, CheckCircle, Clock, Zap, UserPlus, MessageCircle, Twitter, ArrowRightLeft, Repeat, ShieldAlert, CheckCircle2, Scale, PlusCircle, ShieldCheck, History, Ban, Undo2, BookOpen } from 'lucide-react';
+import { Award, Flame, CalendarCheck, Wallet, Loader2, CheckCircle, Clock, Zap, UserPlus, MessageCircle, Twitter, ArrowRightLeft, Repeat, ShieldAlert, CheckCircle2, Scale, PlusCircle, ShieldCheck, History, Ban, Undo2, BookOpen, Send } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import { useToast } from './Toast';
 
@@ -64,13 +64,6 @@ export default function Quests({ userStats, fetchUserStats, processQuestClaim }:
     }
   };
 
-  const handleExternalQuest = (questId: string, xpReward: number, link: string) => {
-    window.open(link, '_blank');
-    setTimeout(() => {
-      processQuestClaim(questId, xpReward, false);
-    }, 4000); 
-  };
-
   if (!address) return null;
 
   const completedQuests = userStats?.completedQuests || [];
@@ -85,11 +78,13 @@ export default function Quests({ userStats, fetchUserStats, processQuestClaim }:
   const isUsernameSet = userStats?.username && !userStats.username.startsWith('User_');
   const isDpSet = userStats?.avatarId !== 0;
 
-  const renderQuestButton = (questId: string, xpReward: number, isDaily: boolean, onClick: () => void, disabled: boolean = false, disabledText: string = "Pending") => {
+  // REMOVED THE CUSTOM TEXT LABELS. IT NOW ONLY SHOWS A UNIFORM "CLAIM +XP" BUTTON.
+  const renderQuestButton = (questId: string, xpReward: number, isDaily: boolean, onClick: () => void, disabled: boolean = false) => {
     const done = isCompleted(questId, isDaily);
     if (done) return <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold text-xs bg-emerald-50 dark:bg-emerald-900/30 px-3 py-1.5 rounded-xl border border-emerald-200 dark:border-emerald-800"><CheckCircle size={14} /> Claimed</div>;
     
-    if (disabled) return <div className="px-4 py-1.5 rounded-xl font-bold text-xs shrink-0 bg-slate-100 dark:bg-slate-800 text-slate-500 border border-slate-200 dark:border-slate-700">{disabledText} (+{xpReward} XP)</div>;
+    // If disabled, it shows the exact same button shape, just greyed out
+    if (disabled) return <button disabled className="px-4 py-1.5 rounded-xl font-bold text-xs shrink-0 bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700 cursor-not-allowed transition-all">Claim +{xpReward} XP</button>;
 
     return <button onClick={() => { onClick(); processQuestClaim(questId, xpReward, isDaily); }} className="px-4 py-1.5 rounded-xl font-bold text-xs shrink-0 bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm hover:shadow-md transition-all">Claim +{xpReward} XP</button>;
   };
@@ -97,7 +92,7 @@ export default function Quests({ userStats, fetchUserStats, processQuestClaim }:
   return (
     <div className="w-full animate-fade-in pb-8 space-y-4">
       
-      {/* TIGHTENED: Top Banner */}
+      {/* Top Banner */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
         <div className="flex items-center gap-3">
           <div className={`w-12 h-12 rounded-full ${AVATARS[userStats?.avatarId || 0]} shrink-0 ring-4 ring-slate-50 dark:ring-slate-950 flex items-center justify-center text-white text-base font-bold`}>
@@ -123,7 +118,7 @@ export default function Quests({ userStats, fetchUserStats, processQuestClaim }:
 
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
         
-        {/* TIGHTENED: Segmented Tabs */}
+        {/* Segmented Tabs */}
         <div className="p-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20">
           <div className="flex p-1 bg-slate-200/50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-xl">
             <button onClick={() => setActiveTab('once')} className={`flex-1 py-1.5 text-xs sm:text-sm font-bold rounded-lg flex items-center justify-center gap-2 transition-all ${activeTab === 'once' ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200/50 dark:border-slate-700/50' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 border border-transparent'}`}>
@@ -135,7 +130,6 @@ export default function Quests({ userStats, fetchUserStats, processQuestClaim }:
           </div>
         </div>
 
-        {/* TIGHTENED: Row Paddings */}
         <div className="divide-y divide-slate-100 dark:divide-slate-800/50">
           
           {activeTab === 'once' && (
@@ -145,7 +139,7 @@ export default function Quests({ userStats, fetchUserStats, processQuestClaim }:
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-indigo-50 text-indigo-500 dark:bg-indigo-500/10"><UserPlus size={16} /></div>
                   <div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Setup Username</p><p className="text-[10px] text-slate-500 mt-0.5">Customize your display name in the Profile tab.</p></div>
                 </div>
-                {renderQuestButton('setup_username', 50, false, () => {}, !isUsernameSet, "Go to Profile")}
+                {renderQuestButton('setup_username', 50, false, () => {}, !isUsernameSet)}
               </div>
 
               <div className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
@@ -153,7 +147,7 @@ export default function Quests({ userStats, fetchUserStats, processQuestClaim }:
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-indigo-50 text-indigo-500 dark:bg-indigo-500/10"><UserPlus size={16} /></div>
                   <div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Setup Display Picture</p><p className="text-[10px] text-slate-500 mt-0.5">Select a custom avatar color in the Profile tab.</p></div>
                 </div>
-                {renderQuestButton('setup_dp', 50, false, () => {}, !isDpSet, "Go to Profile")}
+                {renderQuestButton('setup_dp', 50, false, () => {}, !isDpSet)}
               </div>
 
               <div className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
@@ -161,15 +155,23 @@ export default function Quests({ userStats, fetchUserStats, processQuestClaim }:
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-indigo-50 text-indigo-500 dark:bg-indigo-500/10"><MessageCircle size={16} /></div>
                   <div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Connect Discord</p><p className="text-[10px] text-slate-500 mt-0.5">Link your Discord account via the Profile settings.</p></div>
                 </div>
-                {renderQuestButton('connect_discord', 100, false, () => {}, !userStats?.discordConnected, "Go to Profile")}
+                {renderQuestButton('connect_discord', 100, false, () => {}, !userStats?.discordConnected)}
               </div>
 
               <div className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
                 <div className="flex gap-3 items-center">
-                  <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-indigo-50 text-indigo-500 dark:bg-indigo-500/10"><MessageCircle size={16} /></div>
-                  <div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Join the Discord Server</p><p className="text-[10px] text-slate-500 mt-0.5">Join the community and get the Verified role.</p></div>
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-indigo-50 text-indigo-500 dark:bg-indigo-500/10"><Send size={16} /></div>
+                  <div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Connect Telegram</p><p className="text-[10px] text-slate-500 mt-0.5">Link your Telegram account via the Profile settings.</p></div>
                 </div>
-                {renderQuestButton('join_discord', 100, false, () => handleExternalQuest('join_discord', 100, '#'))}
+                {renderQuestButton('connect_telegram', 100, false, () => {}, !userStats?.telegramConnected)}
+              </div>
+
+              <div className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                <div className="flex gap-3 items-center">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-indigo-50 text-indigo-500 dark:bg-indigo-500/10"><Twitter size={16} /></div>
+                  <div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Connect Twitter / X</p><p className="text-[10px] text-slate-500 mt-0.5">Link your X account via the Profile settings.</p></div>
+                </div>
+                {renderQuestButton('connect_twitter', 100, false, () => {}, !userStats?.twitterConnected)}
               </div>
 
               <div className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
@@ -177,7 +179,7 @@ export default function Quests({ userStats, fetchUserStats, processQuestClaim }:
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-indigo-50 text-indigo-500 dark:bg-indigo-500/10"><BookOpen size={16} /></div>
                   <div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Protocol Scholar</p><p className="text-[10px] text-slate-500 mt-0.5">Read all 3 escrow modules in the Guide tab.</p></div>
                 </div>
-                {renderQuestButton('read_guide', 50, false, () => {}, !hasReadGuides, "Read Guides")}
+                {renderQuestButton('read_guide', 50, false, () => {}, !hasReadGuides)}
               </div>
 
               <div className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
@@ -185,7 +187,7 @@ export default function Quests({ userStats, fetchUserStats, processQuestClaim }:
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-indigo-50 text-indigo-500 dark:bg-indigo-500/10"><ArrowRightLeft size={16} /></div>
                   <div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Generate Volume</p><p className="text-[10px] text-slate-500 mt-0.5">Complete escrows totaling at least $20 USDC in volume.</p></div>
                 </div>
-                {renderQuestButton('gen_volume', 1000, false, () => {}, true, "Auto-Tracks")}
+                {renderQuestButton('gen_volume', 1000, false, () => {}, true)}
               </div>
             </>
           )}
@@ -205,43 +207,43 @@ export default function Quests({ userStats, fetchUserStats, processQuestClaim }:
               <div className="px-5 py-1.5 bg-slate-50 dark:bg-slate-900 border-y border-slate-100 dark:border-slate-800"><span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5"><ShieldAlert size={10}/> Mediated Escrow Dailies</span></div>
               <div className="p-3.5 sm:p-4 flex justify-between items-center hover:bg-slate-50 dark:hover:bg-slate-800/30">
                 <div className="flex gap-3 items-center"><ArrowRightLeft size={14} className="text-slate-400"/><div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Send Mediated Escrow</p></div></div>
-                {renderQuestButton('daily_send_med', 20, true, () => {}, true, "Auto-Tracks")}
+                {renderQuestButton('daily_send_med', 20, true, () => {}, true)}
               </div>
               <div className="p-3.5 sm:p-4 flex justify-between items-center hover:bg-slate-50 dark:hover:bg-slate-800/30">
                 <div className="flex gap-3 items-center"><CheckCircle2 size={14} className="text-slate-400"/><div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Receive Mediated Escrow</p></div></div>
-                {renderQuestButton('daily_recv_med', 20, true, () => {}, true, "Auto-Tracks")}
+                {renderQuestButton('daily_recv_med', 20, true, () => {}, true)}
               </div>
               <div className="p-3.5 sm:p-4 flex justify-between items-center hover:bg-slate-50 dark:hover:bg-slate-800/30">
                 <div className="flex gap-3 items-center"><Scale size={14} className="text-slate-400"/><div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Serve as Arbiter</p></div></div>
-                {renderQuestButton('daily_arb_med', 30, true, () => {}, true, "Auto-Tracks")}
+                {renderQuestButton('daily_arb_med', 30, true, () => {}, true)}
               </div>
 
               <div className="px-5 py-1.5 bg-slate-50 dark:bg-slate-900 border-y border-slate-100 dark:border-slate-800"><span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5"><Flame size={10}/> Bonded Escrow Dailies</span></div>
               <div className="p-3.5 sm:p-4 flex justify-between items-center hover:bg-slate-50 dark:hover:bg-slate-800/30">
                 <div className="flex gap-3 items-center"><PlusCircle size={14} className="text-slate-400"/><div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Create Bonded Escrow</p></div></div>
-                {renderQuestButton('daily_create_bond', 30, true, () => {}, true, "Auto-Tracks")}
+                {renderQuestButton('daily_create_bond', 30, true, () => {}, true)}
               </div>
               <div className="p-3.5 sm:p-4 flex justify-between items-center hover:bg-slate-50 dark:hover:bg-slate-800/30">
                 <div className="flex gap-3 items-center"><ShieldCheck size={14} className="text-slate-400"/><div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Receive Bonded Escrow</p></div></div>
-                {renderQuestButton('daily_recv_bond', 30, true, () => {}, true, "Auto-Tracks")}
+                {renderQuestButton('daily_recv_bond', 30, true, () => {}, true)}
               </div>
 
               <div className="px-5 py-1.5 bg-slate-50 dark:bg-slate-900 border-y border-slate-100 dark:border-slate-800"><span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5"><Clock size={10}/> Timelocked Dailies</span></div>
               <div className="p-3.5 sm:p-4 flex justify-between items-center hover:bg-slate-50 dark:hover:bg-slate-800/30">
                 <div className="flex gap-3 items-center"><History size={14} className="text-slate-400"/><div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Send Timelocked</p></div></div>
-                {renderQuestButton('daily_send_time', 15, true, () => {}, true, "Auto-Tracks")}
+                {renderQuestButton('daily_send_time', 15, true, () => {}, true)}
               </div>
               <div className="p-3.5 sm:p-4 flex justify-between items-center hover:bg-slate-50 dark:hover:bg-slate-800/30">
                 <div className="flex gap-3 items-center"><CheckCircle size={14} className="text-slate-400"/><div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Receive Timelocked</p></div></div>
-                {renderQuestButton('daily_recv_time', 15, true, () => {}, true, "Auto-Tracks")}
+                {renderQuestButton('daily_recv_time', 15, true, () => {}, true)}
               </div>
               <div className="p-3.5 sm:p-4 flex justify-between items-center hover:bg-slate-50 dark:hover:bg-slate-800/30">
                 <div className="flex gap-3 items-center"><Ban size={14} className="text-slate-400"/><div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Decline Timelocked</p></div></div>
-                {renderQuestButton('daily_dec_time', 5, true, () => {}, true, "Auto-Tracks")}
+                {renderQuestButton('daily_dec_time', 5, true, () => {}, true)}
               </div>
               <div className="p-3.5 sm:p-4 flex justify-between items-center hover:bg-slate-50 dark:hover:bg-slate-800/30">
                 <div className="flex gap-3 items-center"><Undo2 size={14} className="text-slate-400"/><div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Reclaim Timelocked</p></div></div>
-                {renderQuestButton('daily_rec_time', 5, true, () => {}, true, "Auto-Tracks")}
+                {renderQuestButton('daily_rec_time', 5, true, () => {}, true)}
               </div>
             </>
           )}

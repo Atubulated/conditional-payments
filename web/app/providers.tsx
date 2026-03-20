@@ -20,7 +20,7 @@ import {
   rainbowWallet,
   walletConnectWallet,
 } from '@rainbow-me/rainbowkit/wallets';
-import { mainnet } from 'wagmi/chains';
+// Notice we completely removed the import { mainnet } from 'wagmi/chains'
 import { type Chain } from 'wagmi/chains';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useTheme } from 'next-themes';
@@ -38,10 +38,9 @@ const arcTestnet: Chain = {
 const config = getDefaultConfig({
   appName: 'Custodex',
   projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? 'YOUR_PROJECT_ID',
-  chains: [mainnet, arcTestnet],
+  chains: [arcTestnet], // <-- Removed mainnet
   transports: {
-    [mainnet.id]: http(),
-    [arcTestnet.id]: http('https://rpc.testnet.arc.network', { timeout: 5000 }),
+    [arcTestnet.id]: http('https://rpc.testnet.arc.network', { timeout: 5000 }), // <-- Removed mainnet transport
   },
   ssr: true,
   wallets: [
