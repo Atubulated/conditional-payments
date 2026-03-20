@@ -28,57 +28,48 @@ const TelegramIcon = ({ size = 24, className = "" }) => (
   </svg>
 );
 
-// THE REAL TELEGRAM WIDGET (PRODUCTION READY)
 const TelegramAuthWidget = ({ botName, onAuth }: { botName: string, onAuth: (user: any) => void }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const onAuthRef = useRef(onAuth);
-  const [isLoaded, setIsLoaded] = useState(false); // ✅ NEW
-
+  
   useEffect(() => {
-    onAuthRef.current = onAuth;
-  }, [onAuth]);
+    // Handle the callback when Telegram redirects back to your site
+    const params = new URLSearchParams(window.location.hash.replace('#', '?'));
+    const tgAuthResult = params.get('tgAuthResult');
+    
+    if (tgAuthResult) {
+      try {
+        const userData = JSON.parse(atob(tgAuthResult));
+        onAuth(userData);
+        // Clean up the URL
+        window.history.replaceState({}, '', window.location.pathname + window.location.search);
+      } catch (e) {
+        console.error('Telegram auth parse error:', e);
+      }
+    }
+  }, []);
 
-  useEffect(() => {
-    if (!botName || botName === 'YOUR_BOT_USERNAME_HERE') return;
+  const handleTelegramLogin = () => {
+    const botId = process.env.NEXT_PUBLIC_TELEGRAM_BOT_ID;
+    const origin = encodeURIComponent(window.location.origin);
+    const returnTo = encodeURIComponent(window.location.href);
+    window.location.href = `https://oauth.telegram.org/auth?bot_id=${botId}&origin=${origin}&return_to=${returnTo}`;
+  };
 
-    window.onTelegramAuth = (user) => {
-      onAuthRef.current(user);
-    };
-
-    const container = containerRef.current;
-    if (!container) return;
-
-    container.innerHTML = '';
-
-    const script = document.createElement('script');
-    script.src = 'https://telegram.org/js/telegram-widget.js?22';
-    script.setAttribute('data-telegram-login', botName);
-    script.setAttribute('data-size', 'medium'); // ✅ CHANGED
-    script.setAttribute('data-radius', '8');
-    script.setAttribute('data-request-access', 'write');
-    script.setAttribute('data-userpic', 'false');
-    script.setAttribute('data-onauth', 'onTelegramAuth(user)');
-    script.async = true;
-    script.onload = () => setIsLoaded(true); // ✅ NEW
-
-    container.appendChild(script);
-
-    return () => {
-      if (container) container.innerHTML = '';
-    };
-  }, [botName]);
+  if (!botName || botName === 'YOUR_BOT_USERNAME_HERE') {
+    return (
+      <button disabled className="w-fit px-4 py-2 bg-[#24A1DE]/50 cursor-not-allowed text-white text-[11px] font-bold rounded-lg shadow-sm mt-1">
+        ⚠️ Add Bot Name to Code
+      </button>
+    );
+  }
 
   return (
-    <div className="mt-1 flex items-center justify-start rounded-lg overflow-hidden w-fit">
-      {/* ✅ NEW: Show placeholder while widget loads */}
-      {!isLoaded && (
-        <button disabled className="px-4 py-2 bg-[#24A1DE]/40 text-white text-[11px] font-bold rounded-lg flex items-center gap-2">
-          <Loader2 size={12} className="animate-spin" />
-          Loading...
-        </button>
-      )}
-      <div ref={containerRef} />
-    </div>
+    <button
+      onClick={handleTelegramLogin}
+      className="mt-1 w-fit px-4 py-2 bg-[#24A1DE] hover:bg-[#1a8fc7] text-white text-[11px] font-bold rounded-lg transition-colors shadow-sm flex items-center gap-2"
+    >
+      <TelegramIcon size={13} />
+      Connect Telegram
+    </button>
   );
 };
 
