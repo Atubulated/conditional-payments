@@ -2,12 +2,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAccount } from 'wagmi';
-import { Award, Flame, CalendarCheck, Wallet, Loader2, CheckCircle, Clock, Zap, UserPlus, MessageCircle, Twitter, ArrowRightLeft, Repeat, ShieldAlert, CheckCircle2, Scale, PlusCircle, ShieldCheck, History, Ban, Undo2, BookOpen, Send } from 'lucide-react';
+import { Award, Flame, CalendarCheck, Loader2, CheckCircle, Clock, Zap, UserPlus, MessageCircle, Twitter, ArrowRightLeft, Repeat, ShieldAlert, CheckCircle2, Scale, PlusCircle, ShieldCheck, History, Ban, Undo2, BookOpen, Send } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import { useToast } from './Toast';
+import ProfileAvatar from './ProfileAvatar';
 
 const truncateAddress = (addr: string) => addr ? `${addr.slice(0, 6)}...${addr.slice(-4)}` : '';
-const AVATARS = ["bg-indigo-500", "bg-emerald-500", "bg-rose-500", "bg-amber-500", "bg-slate-700"];
 
 export default function Quests({ userStats, fetchUserStats, processQuestClaim }: any) {
   const { address } = useAccount();
@@ -78,12 +78,10 @@ export default function Quests({ userStats, fetchUserStats, processQuestClaim }:
   const isUsernameSet = userStats?.username && !userStats.username.startsWith('User_');
   const isDpSet = userStats?.avatarId !== 0;
 
-  // REMOVED THE CUSTOM TEXT LABELS. IT NOW ONLY SHOWS A UNIFORM "CLAIM +XP" BUTTON.
   const renderQuestButton = (questId: string, xpReward: number, isDaily: boolean, onClick: () => void, disabled: boolean = false) => {
     const done = isCompleted(questId, isDaily);
     if (done) return <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold text-xs bg-emerald-50 dark:bg-emerald-900/30 px-3 py-1.5 rounded-xl border border-emerald-200 dark:border-emerald-800"><CheckCircle size={14} /> Claimed</div>;
     
-    // If disabled, it shows the exact same button shape, just greyed out
     if (disabled) return <button disabled className="px-4 py-1.5 rounded-xl font-bold text-xs shrink-0 bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700 cursor-not-allowed transition-all">Claim +{xpReward} XP</button>;
 
     return <button onClick={() => { onClick(); processQuestClaim(questId, xpReward, isDaily); }} className="px-4 py-1.5 rounded-xl font-bold text-xs shrink-0 bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm hover:shadow-md transition-all">Claim +{xpReward} XP</button>;
@@ -92,12 +90,16 @@ export default function Quests({ userStats, fetchUserStats, processQuestClaim }:
   return (
     <div className="w-full animate-fade-in pb-8 space-y-4">
       
-      {/* Top Banner */}
+      {/* Top Banner with Safely Scaled ProfileAvatar */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
         <div className="flex items-center gap-3">
-          <div className={`w-12 h-12 rounded-full ${AVATARS[userStats?.avatarId || 0]} shrink-0 ring-4 ring-slate-50 dark:ring-slate-950 flex items-center justify-center text-white text-base font-bold`}>
-            {userStats?.username ? userStats.username.charAt(0).toUpperCase() : <Wallet size={16} />}
+          
+          <div className="w-12 h-12 rounded-full overflow-hidden shrink-0 flex items-center justify-center bg-slate-100 dark:bg-slate-800 ring-4 ring-slate-50 dark:ring-slate-950 pointer-events-none shadow-sm">
+            <div className="w-[100px] h-[100px] flex items-center justify-center shrink-0 origin-center scale-[0.48]">
+              <ProfileAvatar />
+            </div>
           </div>
+
           <div>
             <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">{userStats?.username || 'Anonymous User'}</h2>
             <p className="text-xs font-mono text-slate-500 dark:text-slate-400 mt-0.5">{truncateAddress(address)}</p>
@@ -118,7 +120,6 @@ export default function Quests({ userStats, fetchUserStats, processQuestClaim }:
 
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
         
-        {/* Segmented Tabs */}
         <div className="p-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20">
           <div className="flex p-1 bg-slate-200/50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-xl">
             <button onClick={() => setActiveTab('once')} className={`flex-1 py-1.5 text-xs sm:text-sm font-bold rounded-lg flex items-center justify-center gap-2 transition-all ${activeTab === 'once' ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200/50 dark:border-slate-700/50' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 border border-transparent'}`}>

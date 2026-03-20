@@ -1,9 +1,14 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useAccount, useWriteContract, useReadContract, useDisconnect } from 'wagmi';
+import { WagmiProvider, http, useAccount, useReadContract, useDisconnect } from 'wagmi';
+import { type Chain } from 'wagmi/chains';
+import { RainbowKitProvider, getDefaultConfig, lightTheme, darkTheme, ConnectButton } from '@rainbow-me/rainbowkit';
+import { metaMaskWallet, okxWallet, trustWallet, rabbyWallet, phantomWallet, bitgetWallet, safepalWallet, coinbaseWallet, rainbowWallet, walletConnectWallet } from '@rainbow-me/rainbowkit/wallets';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useTheme } from 'next-themes';
 import { formatUnits } from 'viem';
-import { ConnectButton } from '@rainbow-me/rainbowkit';
+
 import EscrowForm from './EscrowForm';
 import ActivityList from './ActivityList';
 import Guide from './Guide';
@@ -12,12 +17,68 @@ import Quests from './Quests';
 import Leaderboard from './Leaderboard';
 import FeedbackForm from './FeedbackForm';
 import ThemeToggle from './ThemeToggle';
-import { USDC_ADDRESS, ERC20_ABI, CONTRACT_ADDRESS, CONTRACT_ABI } from './constants';
-import { useToast } from './Toast';
+import ProfileAvatar from './ProfileAvatar';
+import { USDC_ADDRESS, ERC20_ABI } from './constants';
+import { useToast, ToastProvider } from './Toast';
 import { supabase } from './supabaseClient';
 import {
-  ShieldCheck, Bell, Activity as ActivityIcon, CheckCircle2, Clock, PlusCircle, X, AlertTriangle, Snowflake, Mail, CheckCircle, XCircle, ChevronRight, ChevronsRight, ChevronsDown, Lock, Code2, MessageSquareQuote, Loader2, Wallet, Flame, ExternalLink, Undo2, Copy, Check, BookOpen, Award, UserCircle, ChevronLeft, LogOut, Trophy, Activity
+  ShieldCheck, Bell, Activity as ActivityIcon, CheckCircle2, Clock, PlusCircle, X, Mail, CheckCircle, XCircle, ChevronRight, ChevronsRight, ChevronsDown, Lock, Code2, Loader2, Wallet, Flame, Undo2, Copy, Check, BookOpen, Award, UserCircle, ChevronLeft, LogOut
 } from 'lucide-react';
+
+const arcTestnet: Chain = {
+  id: 5042002,
+  name: 'Arc Testnet',
+  nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 6 },
+  rpcUrls: { default: { http: ['https://rpc.testnet.arc.network'] } },
+  blockExplorers: { default: { name: 'Arc Explorer', url: 'https://testnet.arcscan.app' } },
+  testnet: true,
+};
+
+const config = getDefaultConfig({
+  appName: 'Custodex',
+  projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? 'YOUR_PROJECT_ID',
+  chains: [arcTestnet],
+  transports: {
+    [arcTestnet.id]: http('https://rpc.testnet.arc.network', { timeout: 5000 }),
+  },
+  ssr: true,
+  wallets: [
+    {
+      groupName: 'Popular DApp Browsers',
+      wallets: [ okxWallet, metaMaskWallet, trustWallet, rabbyWallet, phantomWallet, bitgetWallet, safepalWallet, coinbaseWallet ],
+    },
+    {
+      groupName: 'Fallback (May be slow on mobile data)',
+      wallets: [ rainbowWallet, walletConnectWallet ],
+    },
+  ],
+});
+
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { staleTime: 1000, retry: 1, refetchOnWindowFocus: false } },
+});
+
+export function Providers({ children }: { children: React.ReactNode }) {
+  const { resolvedTheme } = useTheme();
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => { setMounted(true); }, []);
+
+  const appLightTheme = lightTheme({ accentColor: '#4f46e5', borderRadius: 'large' });
+  const appDarkTheme = darkTheme({ accentColor: '#4f46e5', borderRadius: 'large' });
+
+  return (
+    <WagmiProvider config={config}>
+      <QueryClientProvider client={queryClient}>
+        <RainbowKitProvider theme={mounted && resolvedTheme === 'dark' ? appDarkTheme : appLightTheme} initialChain={arcTestnet}>
+          <ToastProvider>
+            {children}
+          </ToastProvider>
+        </RainbowKitProvider>
+      </QueryClientProvider>
+    </WagmiProvider>
+  );
+}
 
 interface Payment {
   id: string; sender: string; receiver: string; arbiter: string; token: string;
@@ -300,9 +361,13 @@ const Header = ({ address, hasWallet, notifications = [], inbox = [], usdcBalanc
                             <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">{chain.name}</span>
                           </button>
                           
-                          <button onClick={() => { setIsProfileDropdownOpen(!isProfileDropdownOpen); setIsBellOpen(false); setIsInboxOpen(false); }} type="button" className={`p-1.5 sm:p-2 rounded-lg transition-all border flex items-center gap-1.5 ${isProfileDropdownOpen || ['profile', 'quests', 'leaderboard'].includes(activeTab) ? 'bg-indigo-600 text-white shadow-md border-indigo-700' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-indigo-600 dark:text-indigo-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}>
-                            <UserCircle className="w-4 h-4 sm:w-5 sm:h-5" />
-                            {userStats?.username && <span className="text-[10px] font-bold hidden sm:block pr-1 truncate max-w-[80px]">{userStats.username}</span>}
+                          <button onClick={() => { setIsProfileDropdownOpen(!isProfileDropdownOpen); setIsBellOpen(false); setIsInboxOpen(false); }} type="button" className={`p-1 sm:p-1.5 rounded-lg transition-all border flex items-center gap-1.5 ${isProfileDropdownOpen || ['profile', 'quests', 'leaderboard'].includes(activeTab) ? 'bg-indigo-600 text-white shadow-md border-indigo-700' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-indigo-600 dark:text-indigo-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}>
+                            <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full overflow-hidden shrink-0 flex items-center justify-center bg-slate-100 dark:bg-slate-800 pointer-events-none">
+                              <div className="w-[100px] h-[100px] flex items-center justify-center shrink-0 origin-center scale-[0.20] sm:scale-[0.24]">
+                                <ProfileAvatar />
+                              </div>
+                            </div>
+                            {userStats?.username && <span className="text-[10px] font-bold hidden sm:block pr-1 sm:pr-2 truncate max-w-[80px]">{userStats.username}</span>}
                           </button>
 
                           {isProfileDropdownOpen && (
@@ -369,17 +434,13 @@ export default function Home() {
     setMounted(true);
   }, []);
 
-  // Listen for Discord callbacks on page load
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const searchParams = new URLSearchParams(window.location.search);
       const hash = window.location.hash;
       
-      // Check for our custom query param OR the Supabase access token in the hash
       if (searchParams.get('tab') === 'profile' || hash.includes('access_token')) {
         setActiveTab('profile'); 
-        
-        // Clean up the URL by removing ?tab=profile but keep the hash for Supabase
         const cleanUrl = window.location.pathname + hash;
         window.history.replaceState(null, '', cleanUrl);
       }
@@ -495,7 +556,6 @@ export default function Home() {
     }
   }, [address, status, fetchPendingPayments]);
 
-  // THE FIX: Listen strictly to Wagmi's built in connection states, no timers.
   const isAuthLoading = !mounted || status === 'connecting' || status === 'reconnecting';
 
   if (isAuthLoading) return (
