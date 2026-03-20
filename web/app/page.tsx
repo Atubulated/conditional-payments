@@ -349,10 +349,11 @@ export default function Home() {
   const [userStats, setUserStats] = useState<{ 
     xp: number, streak: number, lastCheckin: string | null, username: string | null, avatarId: number, 
     completedQuests: string[], readGuides: number[], discordConnected: boolean, discordUsername?: string,
-    telegramConnected: boolean, telegramUsername?: string
+    telegramConnected: boolean, telegramUsername?: string,
+    twitterConnected: boolean, twitterUsername?: string
   }>({ 
     xp: 0, streak: 0, lastCheckin: null, username: null, avatarId: 0, completedQuests: [], readGuides: [], 
-    discordConnected: false, telegramConnected: false 
+    discordConnected: false, telegramConnected: false, twitterConnected: false
   });
 
   const { data: balanceData } = useReadContract({
@@ -408,7 +409,9 @@ export default function Home() {
         discordConnected: data?.discord_connected || false,
         discordUsername: data?.discord_username,
         telegramConnected: data?.telegram_connected || false,
-        telegramUsername: data?.telegram_username
+        telegramUsername: data?.telegram_username,
+        twitterConnected: data?.twitter_connected || false,
+        twitterUsername: data?.twitter_username
       });
 
       if (needsUpdate) {

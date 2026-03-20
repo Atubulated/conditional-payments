@@ -18,19 +18,19 @@ declare global {
 
 const DiscordIcon = ({ size = 24, className = "" }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className} xmlns="http://www.w3.org/2000/svg">
-    <path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189z"/>
+    <path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189z" />
   </svg>
 );
 
 const TelegramIcon = ({ size = 24, className = "" }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className} xmlns="http://www.w3.org/2000/svg">
-    <path d="m20.665 3.717-17.73 6.837c-1.21.486-1.203 1.161-.222 1.462l4.552 1.42 10.532-6.645c.498-.303.953-.14.579.192l-8.533 7.701h-.002l.002.001-.314 4.692c.46 0 .663-.211.921-.46l2.211-2.15 4.599 3.377c.848.467 1.457.227 1.668-.785l3.019-14.228c.309-1.239-.473-1.8-1.282-1.414z"/>
+    <path d="m20.665 3.717-17.73 6.837c-1.21.486-1.203 1.161-.222 1.462l4.552 1.42 10.532-6.645c.498-.303.953-.14.579.192l-8.533 7.701h-.002l.002.001-.314 4.692c.46 0 .663-.211.921-.46l2.211-2.15 4.599 3.377c.848.467 1.457.227 1.668-.785l3.019-14.228c.309-1.239-.473-1.8-1.282-1.414z" />
   </svg>
 );
 
 const TwitterIcon = ({ size = 24, className = "" }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className} xmlns="http://www.w3.org/2000/svg">
-    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.737-8.835L1.254 2.25H8.08l4.253 5.622 5.911-5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.737-8.835L1.254 2.25H8.08l4.253 5.622 5.911-5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
   </svg>
 );
 
@@ -105,9 +105,9 @@ export default function Profile({ userStats, fetchUserStats }: any) {
       if (provider === 'discord') {
         try {
           const discordName = session.user.user_metadata.custom_claims?.global_name
-                           || session.user.user_metadata.name
-                           || session.user.user_metadata.full_name
-                           || 'Discord User';
+            || session.user.user_metadata.name
+            || session.user.user_metadata.full_name
+            || 'Discord User';
 
           const { error } = await supabase
             .from('user_points')
@@ -127,11 +127,11 @@ export default function Profile({ userStats, fetchUserStats }: any) {
       }
 
       // Handle Twitter
-      if (provider === 'twitter') {
+      if (provider === 'x') {
         try {
           const twitterName = session.user.user_metadata.user_name
-                           || session.user.user_metadata.name
-                           || 'Twitter User';
+            || session.user.user_metadata.name
+            || 'Twitter User';
           const twitterUsername = `@${twitterName}`;
 
           const { error } = await supabase
@@ -206,7 +206,7 @@ export default function Profile({ userStats, fetchUserStats }: any) {
   const handleTwitterConnect = async () => {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'twitter',
+        provider: 'x',
         options: { redirectTo: `${window.location.origin}/?tab=profile` },
       });
       if (error) throw error;
@@ -281,12 +281,12 @@ export default function Profile({ userStats, fetchUserStats }: any) {
         <div className="flex items-center gap-5 sm:gap-6 bg-slate-50 dark:bg-slate-950/50 py-2 px-4 rounded-xl border border-slate-100 dark:border-slate-800">
           <div className="flex flex-col items-center">
             <span className="text-lg font-black text-indigo-600 dark:text-indigo-400">{userStats?.xp || 0}</span>
-            <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1"><Award size={10}/> Total XP</span>
+            <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1"><Award size={10} /> Total XP</span>
           </div>
           <div className="w-px h-6 bg-slate-200 dark:bg-slate-800"></div>
           <div className="flex flex-col items-center">
             <span className="text-lg font-black text-slate-700 dark:text-slate-300">{userStats?.streak || 0}</span>
-            <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1"><Flame size={10}/> Streak</span>
+            <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1"><Flame size={10} /> Streak</span>
           </div>
         </div>
       </div>
@@ -303,7 +303,7 @@ export default function Profile({ userStats, fetchUserStats }: any) {
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-lg bg-[#5865F2]/10 text-[#5865F2] flex items-center justify-center">
-                  <DiscordIcon size={16}/>
+                  <DiscordIcon size={16} />
                 </div>
                 <span className="text-sm font-bold text-slate-900 dark:text-slate-100">Discord</span>
               </div>
@@ -327,7 +327,7 @@ export default function Profile({ userStats, fetchUserStats }: any) {
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-lg bg-black/10 dark:bg-white/10 text-black dark:text-white flex items-center justify-center">
-                  <TwitterIcon size={16}/>
+                  <TwitterIcon size={16} />
                 </div>
                 <span className="text-sm font-bold text-slate-900 dark:text-slate-100">Twitter / X</span>
               </div>
@@ -352,7 +352,7 @@ export default function Profile({ userStats, fetchUserStats }: any) {
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-lg bg-[#24A1DE]/10 text-[#24A1DE] flex items-center justify-center">
-                  <TelegramIcon size={16}/>
+                  <TelegramIcon size={16} />
                 </div>
                 <span className="text-sm font-bold text-slate-900 dark:text-slate-100">Telegram</span>
               </div>
@@ -377,7 +377,7 @@ export default function Profile({ userStats, fetchUserStats }: any) {
             <div className="flex justify-between items-start">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mt-0.5">
-                  <Wallet size={16}/>
+                  <Wallet size={16} />
                 </div>
                 <div className="flex flex-col">
                   <span className="text-sm font-bold text-slate-900 dark:text-slate-100">Primary Wallet</span>
@@ -411,7 +411,7 @@ export default function Profile({ userStats, fetchUserStats }: any) {
             </div>
             <div className="p-5 space-y-5">
               <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2"><UserPlus size={12}/> Display Name</label>
+                <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2"><UserPlus size={12} /> Display Name</label>
                 <input
                   type="text"
                   placeholder="Enter a username..."
