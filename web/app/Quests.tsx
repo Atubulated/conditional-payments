@@ -120,6 +120,7 @@ export default function Quests({ userStats, fetchUserStats, processQuestClaim }:
 
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
         
+        {/* Segmented Tabs */}
         <div className="p-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20">
           <div className="flex p-1 bg-slate-200/50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-xl">
             <button onClick={() => setActiveTab('once')} className={`flex-1 py-1.5 text-xs sm:text-sm font-bold rounded-lg flex items-center justify-center gap-2 transition-all ${activeTab === 'once' ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200/50 dark:border-slate-700/50' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 border border-transparent'}`}>
@@ -143,10 +144,11 @@ export default function Quests({ userStats, fetchUserStats, processQuestClaim }:
                 {renderQuestButton('setup_username', 50, false, () => {}, !isUsernameSet)}
               </div>
 
+              {/* CHANGE: Updated text to reflect picture upload rather than random colors */}
               <div className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
                 <div className="flex gap-3 items-center">
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-indigo-50 text-indigo-500 dark:bg-indigo-500/10"><UserPlus size={16} /></div>
-                  <div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Setup Display Picture</p><p className="text-[10px] text-slate-500 mt-0.5">Select a custom avatar color in the Profile tab.</p></div>
+                  <div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Setup Display Picture</p><p className="text-[10px] text-slate-500 mt-0.5">Upload a custom profile picture in the Profile tab.</p></div>
                 </div>
                 {renderQuestButton('setup_dp', 50, false, () => {}, !isDpSet)}
               </div>
@@ -205,7 +207,8 @@ export default function Quests({ userStats, fetchUserStats, processQuestClaim }:
                 </button>
               </div>
 
-              <div className="px-5 py-1.5 bg-slate-50 dark:bg-slate-900 border-y border-slate-100 dark:border-slate-800"><span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5"><ShieldAlert size={10}/> Mediated Escrow Dailies</span></div>
+              {/* CHANGE: Changed 'Mediated Escrow Dailies' to 'Mediated Escrow Missions' */}
+              <div className="px-5 py-1.5 bg-slate-50 dark:bg-slate-900 border-y border-slate-100 dark:border-slate-800"><span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5"><ShieldAlert size={10}/> Mediated Escrow Missions</span></div>
               <div className="p-3.5 sm:p-4 flex justify-between items-center hover:bg-slate-50 dark:hover:bg-slate-800/30">
                 <div className="flex gap-3 items-center"><ArrowRightLeft size={14} className="text-slate-400"/><div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Send Mediated Escrow</p></div></div>
                 {renderQuestButton('daily_send_med', 20, true, () => {}, true)}
@@ -219,7 +222,8 @@ export default function Quests({ userStats, fetchUserStats, processQuestClaim }:
                 {renderQuestButton('daily_arb_med', 30, true, () => {}, true)}
               </div>
 
-              <div className="px-5 py-1.5 bg-slate-50 dark:bg-slate-900 border-y border-slate-100 dark:border-slate-800"><span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5"><Flame size={10}/> Bonded Escrow Dailies</span></div>
+              {/* CHANGE: Changed 'Bonded Escrow Dailies' to 'Bonded Escrow Missions' */}
+              <div className="px-5 py-1.5 bg-slate-50 dark:bg-slate-900 border-y border-slate-100 dark:border-slate-800"><span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5"><Flame size={10}/> Bonded Escrow Missions</span></div>
               <div className="p-3.5 sm:p-4 flex justify-between items-center hover:bg-slate-50 dark:hover:bg-slate-800/30">
                 <div className="flex gap-3 items-center"><PlusCircle size={14} className="text-slate-400"/><div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Create Bonded Escrow</p></div></div>
                 {renderQuestButton('daily_create_bond', 30, true, () => {}, true)}
@@ -229,7 +233,8 @@ export default function Quests({ userStats, fetchUserStats, processQuestClaim }:
                 {renderQuestButton('daily_recv_bond', 30, true, () => {}, true)}
               </div>
 
-              <div className="px-5 py-1.5 bg-slate-50 dark:bg-slate-900 border-y border-slate-100 dark:border-slate-800"><span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5"><Clock size={10}/> Timelocked Dailies</span></div>
+              {/* CHANGE: Changed 'Timelocked Dailies' to 'Timelocked Missions' */}
+              <div className="px-5 py-1.5 bg-slate-50 dark:bg-slate-900 border-y border-slate-100 dark:border-slate-800"><span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5"><Clock size={10}/> Timelocked Missions</span></div>
               <div className="p-3.5 sm:p-4 flex justify-between items-center hover:bg-slate-50 dark:hover:bg-slate-800/30">
                 <div className="flex gap-3 items-center"><History size={14} className="text-slate-400"/><div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Send Timelocked</p></div></div>
                 {renderQuestButton('daily_send_time', 15, true, () => {}, true)}
