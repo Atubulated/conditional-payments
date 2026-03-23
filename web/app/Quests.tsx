@@ -112,15 +112,15 @@ export default function Quests({ userStats, fetchUserStats, processQuestClaim }:
     p.sender === address?.toLowerCase() && p.p_type === 2);
   const hasReceivedMediated = todayPayments.some(p =>
     p.receiver === address?.toLowerCase() && p.p_type === 2 && p.status >= 3);
-  const hasServedAsArbiter = escrowActivity.some(p =>
-    p.arbiter === address?.toLowerCase() && p.p_type === 2 && p.status === 3);
+  const hasServedAsArbiter = todayPayments.some(p =>
+  p.arbiter === address?.toLowerCase() && p.p_type === 2 && p.status === 3);
   const hasRaisedDispute = todayPayments.some(p =>
     (p.sender === address?.toLowerCase() || p.receiver === address?.toLowerCase()) && p.status === 2);
   const hasReleasedFunds = todayPayments.some(p =>
     p.sender === address?.toLowerCase() && p.p_type === 2 && p.status === 3);
-  const hasRefundedSender = escrowActivity.some(p =>
-    p.arbiter === address?.toLowerCase() && p.p_type === 2 &&
-    p.resolved_to?.toLowerCase() === p.sender?.toLowerCase());
+  const hasRefundedSender = todayPayments.some(p =>
+  p.arbiter === address?.toLowerCase() && p.p_type === 2 &&
+  p.resolved_to?.toLowerCase() === p.sender?.toLowerCase());
 
   // ✅ Bonded quest checks
   const hasCreatedBonded = todayPayments.some(p =>
