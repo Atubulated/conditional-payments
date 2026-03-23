@@ -553,6 +553,8 @@ export default function Home() {
   useEffect(() => {
     if (address && status === 'connected') {
       fetchPendingPayments();
+      const interval = setInterval(fetchPendingPayments, 15000);
+      return () => clearInterval(interval);
     }
   }, [address, status, fetchPendingPayments]);
 
@@ -647,7 +649,10 @@ export default function Home() {
                 <div className="w-full flex justify-center min-h-[400px]">
                   {activeTab === 'create' && (
                     <div className="w-full max-w-md bg-white dark:bg-[#0B1120] border border-slate-200 dark:border-slate-800/80 rounded-2xl p-4 sm:p-5 shadow-[0_8px_30px_rgba(0,0,0,0.06)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.5)] dark:ring-1 dark:ring-white/5">
-                      <EscrowForm onPaymentCreated={() => { setActiveTab('activity'); }} />
+                      <EscrowForm onPaymentCreated={() => { 
+  setActiveTab('activity');
+  fetchPendingPayments(); // ✅ Refresh bell notifications immediately
+}} />
                     </div>
                   )}
                   {activeTab === 'activity' && (
