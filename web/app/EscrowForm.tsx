@@ -325,14 +325,7 @@ export default function EscrowForm({ onPaymentCreated }: { onPaymentCreated?: ()
         )}
 
         <div className="pt-3">
-          {isFormValid && !hasInsufficientBalance && txStatus === 'idle' && (
-            <div className="mb-5 p-3 rounded-xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 flex items-start gap-2.5 animate-fade-in-up">
-              <AlertTriangle size={16} className="text-amber-500 dark:text-amber-400 shrink-0 mt-0.5" />
-              <p className="text-amber-800 dark:text-amber-200 text-[11px] sm:text-xs font-medium leading-relaxed">
-                <strong className="font-bold">Notice:</strong> Your wallet may flag this transaction. This is expected for testnet.
-              </p>
-            </div>
-          )}
+          
 
           {txStatus === 'idle' && (
             <button onClick={handleAction} disabled={!isFormValid || hasInsufficientBalance} className={`w-full py-3.5 rounded-xl font-bold text-sm uppercase tracking-wide transition-all duration-200 ${isFormValid && !hasInsufficientBalance ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-[0_4px_14px_rgba(79,70,229,0.3)] dark:shadow-[0_4px_20px_rgba(79,70,229,0.4)] active:scale-[0.98]' : hasInsufficientBalance ? 'bg-rose-50 dark:bg-rose-500/10 text-rose-500 dark:text-rose-400 cursor-not-allowed border border-rose-200 dark:border-rose-500/20' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed border border-slate-200 dark:border-slate-700'}`}>{buttonText}</button>
@@ -343,7 +336,7 @@ export default function EscrowForm({ onPaymentCreated }: { onPaymentCreated?: ()
               <Loader2 className="animate-spin text-indigo-600 dark:text-indigo-400" size={16} />
               <span>
                 {txStatus === 'pending' ? 'Confirm in Wallet...' : 
-                 txStatus === 'indexing' ? 'Syncing to Ledger...' : 'Processing...'}
+                 txStatus === 'indexing' ? 'Finalizing...' : 'Processing...'}
               </span>
             </div>
           )}
