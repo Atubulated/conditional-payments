@@ -262,7 +262,7 @@ export default function ActivityList({ className = '', onActivityUpdate }: { cla
           let warningText = "";
           let warningIconColor = "text-indigo-500 dark:text-indigo-400";
 
-          if (p.deadline !== "0" && !p.isDeclined && p.status !== 3 && p.status !== 4 && p.status !== 2) {
+          if (p.deadline !== "0" && !p.isDeclined && p.status !== 3 && p.status !== 4 && p.status !== 2 && p.pType !== 3) {
               if (isExpired && isSender && (p.status === 0 || p.status === 1)) {
                   showWarning = true;
                   warningText = "Deadline Passed: The receiver did not act in time. You may now reclaim your funds.";

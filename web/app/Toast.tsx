@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
-import { CheckCircle2, XCircle, AlertCircle, X, ExternalLink } from 'lucide-react';
+import { CheckCircle2, XCircle, Info, X, ExternalLink } from 'lucide-react';
 
 type ToastType = 'success' | 'error' | 'info';
 
@@ -21,11 +21,30 @@ const ToastContext = createContext<ToastContextType | undefined>(undefined);
 
 export function useToast() {
   const context = useContext(ToastContext);
-  if (!context) {
-    throw new Error('useToast must be used within ToastProvider');
-  }
+  if (!context) throw new Error('useToast must be used within ToastProvider');
   return context;
 }
+
+const TOAST_CONFIG = {
+  success: {
+    icon: CheckCircle2,
+    bar: 'bg-emerald-500',
+    iconColor: 'text-emerald-400',
+    border: 'border-emerald-500/20',
+  },
+  error: {
+    icon: XCircle,
+    bar: 'bg-rose-500',
+    iconColor: 'text-rose-400',
+    border: 'border-rose-500/20',
+  },
+  info: {
+    icon: Info,
+    bar: 'bg-indigo-500',
+    iconColor: 'text-indigo-400',
+    border: 'border-indigo-500/20',
+  },
+};
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -33,11 +52,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const showToast = useCallback((type: ToastType, message: string, link?: string, linkText?: string) => {
     const id = Date.now() + Math.random();
     setToasts((prev) => [...prev, { id, type, message, link, linkText }]);
-
-    // Auto remove after 10 seconds
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 10000);
+    }, 3500);
   }, []);
 
   const removeToast = useCallback((id: number) => {
@@ -47,84 +64,41 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={{ showToast }}>
       {children}
-
-      {/* Toast Container - THE FIX: Updated z-index to 999999 */}
-      <div className="fixed bottom-6 right-6 z-[999999] flex flex-col gap-3 pointer-events-none">
-        {toasts.map((toast) => (
-          <div
-            key={toast.id}
-            className={`
-              pointer-events-auto
-              flex items-start gap-3 px-4 py-3 rounded-xl shadow-2xl backdrop-blur-xl
-              min-w-[280px] max-w-[380px]
-              transform transition-all duration-300 ease-out
-              animate-[slideIn_0.3s_ease-out]
-              ${toast.type === 'success' ? 'bg-card border border-success/30 text-success' : ''}
-              ${toast.type === 'error' ? 'bg-card border border-error/30 text-error' : ''}
-              ${toast.type === 'info' ? 'bg-card border border-info/30 text-info' : ''}
-            `}
-            style={{
-              boxShadow: toast.type === 'success'
-                ? '0 0 20px rgba(34, 211, 238, 0.15)'
-                : toast.type === 'error'
-                  ? '0 0 20px rgba(239, 68, 68, 0.15)'
-                  : '0 0 20px rgba(99, 102, 241, 0.15)'
-            }}
-          >
-            {/* Icon */}
-            <div className="mt-0.5">
-              {toast.type === 'success' && <CheckCircle2 className="w-5 h-5 text-success" />}
-              {toast.type === 'error' && <XCircle className="w-5 h-5 text-error" />}
-              {toast.type === 'info' && <AlertCircle className="w-5 h-5 text-info" />}
-            </div>
-
-            {/* Content */}
-            <div className="flex-1 min-w-0">
-              <span className="text-sm font-medium">{toast.message}</span>
-
-              {/* Optional Link */}
-              {toast.link && (
-                <a
-                  href={toast.link}
-                  target="_blank"
-                  rel="noreferrer"
-                  className={`
-                    mt-1.5 flex items-center gap-1 text-xs font-medium
-                    ${toast.type === 'success' ? 'text-success hover:text-success/80' : ''}
-                    ${toast.type === 'error' ? 'text-error hover:text-error/80' : ''}
-                    ${toast.type === 'info' ? 'text-info hover:text-info/80' : ''}
-                    transition-colors
-                  `}
-                >
-                  {toast.linkText || 'View'} <ExternalLink className="w-3 h-3" />
-                </a>
-              )}
-            </div>
-
-            {/* Close Button */}
-            <button
-              onClick={() => removeToast(toast.id)}
-              className="p-1 hover:bg-tertiary rounded-lg transition-colors text-text-muted hover:text-text-primary"
+      <div className="fixed bottom-5 right-5 z-[999999] flex flex-col gap-2.5 pointer-events-none">
+        {toasts.map((toast) => {
+          const cfg = TOAST_CONFIG[toast.type];
+          const Icon = cfg.icon;
+          return (
+            <div
+              key={toast.id}
+              className={`toast-enter pointer-events-auto relative overflow-hidden flex items-start gap-3 pl-4 pr-3 py-3 rounded-xl border ${cfg.border} bg-slate-900/95 backdrop-blur-xl min-w-[260px] max-w-[340px] shadow-[0_8px_32px_rgba(0,0,0,0.4)]`}
             >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        ))}
+              <div className={`absolute left-0 top-0 bottom-0 w-[3px] ${cfg.bar} rounded-l-xl`} />
+              <Icon className={`w-4 h-4 mt-0.5 shrink-0 ${cfg.iconColor}`} />
+              <div className="flex-1 min-w-0">
+                <p className="text-[13px] font-semibold text-slate-100 leading-snug">{toast.message}</p>
+                {toast.link && (
+                  <a
+                    href={toast.link}
+                    target="_blank"
+                    rel="noreferrer"
+                    className={`mt-1 inline-flex items-center gap-1 text-[11px] font-bold ${cfg.iconColor} hover:opacity-80 transition-opacity`}
+                  >
+                    {toast.linkText || 'View'} <ExternalLink className="w-2.5 h-2.5" />
+                  </a>
+                )}
+              </div>
+              <button
+                onClick={() => removeToast(toast.id)}
+                className="p-1 rounded-md text-slate-500 hover:text-slate-300 hover:bg-slate-800 transition-colors shrink-0"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+              <div className={`toast-progress absolute bottom-0 left-0 h-[2px] ${cfg.bar} opacity-40`} />
+            </div>
+          );
+        })}
       </div>
-
-      {/* Keyframe animation */}
-      <style jsx global>{`
-        @keyframes slideIn {
-          from {
-            opacity: 0;
-            transform: translateX(100px);
-          }
-          to {
-            opacity: 1;
-            transform: translateX(0);
-          }
-        }
-      `}</style>
     </ToastContext.Provider>
   );
 }
