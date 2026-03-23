@@ -188,7 +188,7 @@ export default function ActivityList({ className = '', onActivityUpdate }: { cla
       return { text: 'Expired', color: 'text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700', icon: Clock };
     }
 
-    if (status === 1) return { text: `Active: ${formatTimeRemaining(deadline)}`, color: 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 border-indigo-200 dark:border-indigo-500/20', icon: Shield };
+    if (status === 1) return { text: p.pType === 3 ? 'Active' : `Active: ${formatTimeRemaining(deadline)}`, color: 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 border-indigo-200 dark:border-indigo-500/20', icon: Shield };
     
     if (status === 0) {
       if (p.pType === 1) {

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAccount } from 'wagmi';
-import { Award, Flame, CalendarCheck, Loader2, CheckCircle, Clock, Zap, UserPlus, MessageCircle, Twitter, ArrowRightLeft, Repeat, ShieldAlert, CheckCircle2, Scale, PlusCircle, ShieldCheck, History, Ban, Undo2, BookOpen, Send, AlertTriangle } from 'lucide-react';
+import { Award, Flame, CalendarCheck, CheckCircle, Clock, UserPlus, MessageCircle, Twitter, ArrowRightLeft, Repeat, ShieldAlert, CheckCircle2, Scale, PlusCircle, ShieldCheck, History, Ban, Undo2, BookOpen, Send, AlertTriangle } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import { useToast } from './Toast';
 import ProfileAvatar from './ProfileAvatar';
@@ -113,20 +113,25 @@ export default function Quests({ userStats, fetchUserStats, processQuestClaim }:
   const hasReceivedMediated = todayPayments.some(p =>
     p.receiver === address?.toLowerCase() && p.p_type === 2 && p.status >= 3);
   const hasServedAsArbiter = todayPayments.some(p =>
-  p.arbiter === address?.toLowerCase() && p.p_type === 2 && p.status === 3);
+    p.arbiter === address?.toLowerCase() && p.p_type === 2 && p.status === 3);
   const hasRaisedDispute = todayPayments.some(p =>
     (p.sender === address?.toLowerCase() || p.receiver === address?.toLowerCase()) && p.status === 2);
   const hasReleasedFunds = todayPayments.some(p =>
     p.sender === address?.toLowerCase() && p.p_type === 2 && p.status === 3);
   const hasRefundedSender = todayPayments.some(p =>
-  p.arbiter === address?.toLowerCase() && p.p_type === 2 &&
-  p.resolved_to?.toLowerCase() === p.sender?.toLowerCase());
+    p.arbiter === address?.toLowerCase() && p.p_type === 2 &&
+    p.resolved_to?.toLowerCase() === p.sender?.toLowerCase());
 
   // ✅ Bonded quest checks
   const hasCreatedBonded = todayPayments.some(p =>
     p.sender === address?.toLowerCase() && p.p_type === 3);
   const hasReceivedBonded = todayPayments.some(p =>
     p.receiver === address?.toLowerCase() && p.p_type === 3 && p.status >= 1);
+  const hasDeclinedBonded = todayPayments.some(p =>
+    p.receiver === address?.toLowerCase() && p.p_type === 3 && p.is_declined === true);
+  const hasSlashedBonded = todayPayments.some(p =>
+    p.sender === address?.toLowerCase() && p.p_type === 3 && p.status === 3 &&
+    p.resolved_to === '0x0000000000000000000000000000000000000000');
 
   const renderQuestButton = (questId: string, xpReward: number, isDaily: boolean, onClick: () => void, disabled: boolean = false) => {
     const done = isCompleted(questId, isDaily);
@@ -318,6 +323,14 @@ export default function Quests({ userStats, fetchUserStats, processQuestClaim }:
               <div className="p-3.5 sm:p-4 flex justify-between items-center hover:bg-slate-50 dark:hover:bg-slate-800/30">
                 <div className="flex gap-3 items-center"><ShieldCheck size={14} className="text-slate-400" /><div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Receive Bonded Escrow</p></div></div>
                 {renderQuestButton('daily_recv_bond', 30, true, () => {}, !hasReceivedBonded)}
+              </div>
+              <div className="p-3.5 sm:p-4 flex justify-between items-center hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                <div className="flex gap-3 items-center"><Ban size={14} className="text-slate-400" /><div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Decline Bonded Escrow</p></div></div>
+                {renderQuestButton('daily_dec_bond', 5, true, () => {}, !hasDeclinedBonded)}
+              </div>
+              <div className="p-3.5 sm:p-4 flex justify-between items-center hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                <div className="flex gap-3 items-center"><Flame size={14} className="text-slate-400" /><div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Dispute (Slash) Bonded Escrow</p></div></div>
+                {renderQuestButton('daily_slash_bond', 20, true, () => {}, !hasSlashedBonded)}
               </div>
 
               {/* Timelocked Missions */}
