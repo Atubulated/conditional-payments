@@ -116,7 +116,7 @@ export default function EscrowForm({ onPaymentCreated }: { onPaymentCreated?: ()
         
         let args: any[];
         if (paymentMode === 'Mediated') {
-            const deadline = BigInt(now + 86400); 
+            const deadline = BigInt(now + 31536000); 
             args = [receiver as `0x${string}`, arbiter as `0x${string}`, USDC_ADDRESS as `0x${string}`, amountBigInt, zeroBytes, deadline];
         } else if (paymentMode === 'Timelock') {
             const delaySeconds = (Number(coolOffHours || 0) * 3600) + (Number(coolOffMins || 0) * 60);
