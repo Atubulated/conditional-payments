@@ -66,7 +66,6 @@ export default function ActivityList({ className = '', onActivityUpdate }: { cla
     if (!address) return;
     try {
       const userAddr = address.toLowerCase();
-      // SURGICAL FIX: Fetch all chat instances to correctly show Transcript button
       const [paymentsRes, anyChatRes] = await Promise.all([
           supabase.from('escrow_payments').select('*').or(`sender.eq.${userAddr},receiver.eq.${userAddr},arbiter.eq.${userAddr}`),
           supabase.from('arbiter_chat').select('payment_id')
@@ -85,10 +84,11 @@ export default function ActivityList({ className = '', onActivityUpdate }: { cla
     } catch (e) {} finally { setIsLoading(false); }
   }, [address]);
 
+  // SURGICAL FIX: Give Supabase a split second to save the new transaction before fetching the list on component load
   useEffect(() => { 
     if (address) { 
       setIsLoading(true); 
-      loadFromDatabase(); 
+      loadFromDatabase(); // Restored to fetch instantly
       const interval = setInterval(loadFromDatabase, 15000); 
       return () => clearInterval(interval); 
     } 
@@ -161,8 +161,11 @@ export default function ActivityList({ className = '', onActivityUpdate }: { cla
           
           await supabase.from('escrow_payments').update(updatePayload).eq('id', id);
 
-          loadFromDatabase(); 
-          if (onActivityUpdate) onActivityUpdate();
+          // SURGICAL FIX: Wait 500ms before re-fetching so the database has time to confirm the save
+          setTimeout(() => {
+              loadFromDatabase(); 
+              if (onActivityUpdate) onActivityUpdate();
+          }, 500);
         }
     } catch (e) { showToast('error', 'Failed'); }
   };
@@ -285,7 +288,6 @@ export default function ActivityList({ className = '', onActivityUpdate }: { cla
           if (isSlashed) { destAddress = '0x0000...0000'; destLabel = 'Slashed'; flowColor = 'text-rose-300 dark:text-rose-500/50'; destLabelColor = 'text-rose-500 dark:text-rose-400'; }
           else if (isReturned) { destAddress = p.sender; destLabel = 'Refunded To'; FlowIcon = Undo2; flowColor = 'text-amber-400 dark:text-amber-500/50'; destLabelColor = 'text-amber-600 dark:text-amber-400'; }
 
-          // SURGICAL FIX: Validate if chat actually exists
           const hasChatHistory = verdictPayments.has(String(p.id));
 
           return (
@@ -295,7 +297,6 @@ export default function ActivityList({ className = '', onActivityUpdate }: { cla
                   <div className="space-y-3 w-full sm:w-auto">
                     <div className={`px-2.5 py-1 w-fit rounded-md border text-[10px] font-bold uppercase flex items-center gap-1.5 ${statusColor}`}><StatusIcon size={12} /> {statusText}</div>
                     
-                    {/* SURGICAL FIX: Added flex-wrap and whitespace-nowrap so addresses stack neatly on mobile */}
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-2 text-[11px] font-mono text-slate-500 dark:text-slate-400">
                       <div className="flex items-center gap-1.5 whitespace-nowrap"><span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase font-sans">From</span><span className={isSender ? 'text-indigo-600 dark:text-indigo-400 font-bold' : ''}>{truncateAddress(p.sender)}</span></div>
                       <FlowIcon size={12} className={`shrink-0 ${flowColor}`} />
@@ -304,7 +305,6 @@ export default function ActivityList({ className = '', onActivityUpdate }: { cla
                     </div>
                   </div>
                   
-                  {/* SURGICAL FIX: Restructured buttons to flex-wrap gracefully */}
                   <div className="flex flex-col sm:flex-col items-start sm:items-end justify-between w-full sm:w-auto gap-3 pt-2 sm:pt-0">
                     <div className="text-left sm:text-right flex flex-col items-start sm:items-end w-full sm:w-auto border-t border-slate-100 dark:border-slate-800/50 sm:border-0 pt-3 sm:pt-0">
                       <div className="font-bold text-slate-900 dark:text-white text-base">{(Number(p.amount) / 1e6).toFixed(2)} USDC</div>
@@ -349,7 +349,6 @@ export default function ActivityList({ className = '', onActivityUpdate }: { cla
 
       {disputeAction && createPortal(
         <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/60 dark:bg-black/80 backdrop-blur-sm animate-fade-in" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
-          {/* SURGICAL FIX: Added max-h-[90vh] overflow-y-auto to modals to prevent cropping on short mobile screens */}
           <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl max-w-sm w-full space-y-5 shadow-2xl ring-1 ring-black/5 dark:ring-white/5 max-h-[90vh] overflow-y-auto">
             <div className="text-center space-y-3">
               <div className={`w-12 h-12 border rounded-full mx-auto flex items-center justify-center ${disputeAction.pType === 3 ? 'bg-rose-50 dark:bg-rose-500/10 border-rose-100 dark:border-rose-500/20 text-rose-500 dark:text-rose-400' : 'bg-amber-50 dark:bg-amber-500/10 border-amber-100 dark:border-amber-500/20 text-amber-500 dark:text-amber-400'}`}>

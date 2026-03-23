@@ -31,7 +31,7 @@ async function waitForReceiptWithStatus(txHash: string, timeoutMs: number = 6000
   throw new Error('Transaction timeout');
 }
 
-type TxStatus = 'idle' | 'pending' | 'processing' | 'success';
+type TxStatus = 'idle' | 'pending' | 'processing' | 'indexing';
 
 export default function EscrowForm({ onPaymentCreated }: { onPaymentCreated?: () => void }) {
   const { address } = useAccount();
@@ -135,17 +135,62 @@ export default function EscrowForm({ onPaymentCreated }: { onPaymentCreated?: ()
         showToast('info', 'Transaction submitted', 'Waiting for confirmation...');
 
         const receipt = await waitForReceiptWithStatus(hash);
+        
         if (receipt.status === 'success') {
-            // THE FIX: Trigger Success State instead of immediately resetting
-            setTxStatus('success');
-            showToast('success', 'Escrow created!', `https://testnet.arcscan.app/tx/${hash}`, 'View Explorer');
-            
-            // Hold success state for 2.5 seconds before redirecting
-            setTimeout(() => {
-                if (onPaymentCreated) onPaymentCreated();
-                resetForm();
-            }, 5000);
-        } else {
+    showToast('success', 'Escrow created!', `https://testnet.arcscan.app/tx/${hash}`, 'View Explorer');
+    setTxStatus('indexing');
+
+    try {
+        // ✅ Step 1: Get all payment IDs for this sender
+        const { createPublicClient, http: viemHttp } = await import('viem');
+        const publicClient = createPublicClient({
+            chain: { id: 5042002, name: 'Arc Testnet', nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 6 }, rpcUrls: { default: { http: ['https://rpc.testnet.arc.network'] } } } as any,
+            transport: viemHttp('https://rpc.testnet.arc.network'),
+        });
+
+        const paymentIds = await publicClient.readContract({
+            address: CONTRACT_ADDRESS as `0x${string}`,
+            abi: CONTRACT_ABI,
+            functionName: 'getPaymentsForSender',
+            args: [address as `0x${string}`],
+        }) as bigint[];
+
+        // ✅ Step 2: Get the latest payment (last in array)
+        const latestId = paymentIds[paymentIds.length - 1];
+
+        const payment = await publicClient.readContract({
+            address: CONTRACT_ADDRESS as `0x${string}`,
+            abi: CONTRACT_ABI,
+            functionName: 'getPayment',
+            args: [latestId],
+        }) as any;
+
+        // ✅ Step 3: Save to Supabase
+        const { supabase } = await import('./supabaseClient');
+        await supabase.from('escrow_payments').upsert({
+            id: latestId.toString(),
+            sender: payment.sender.toLowerCase(),
+            receiver: payment.receiver.toLowerCase(),
+            arbiter: payment.arbiter.toLowerCase(),
+            amount: payment.amount.toString(),
+            bond_amount: payment.bondAmount.toString(),
+            deadline: payment.deadline.toString(),
+            available_at: payment.availableAt.toString(),
+            p_type: payment.pType,
+            status: payment.status,
+            is_declined: false,
+            last_tx_hash: hash,
+        });
+
+    } catch (saveError) {
+        console.error('Failed to save payment to DB:', saveError);
+    }
+
+    setTimeout(() => {
+        if (onPaymentCreated) onPaymentCreated();
+        resetForm();
+    }, 1000); // ✅ Reduced from 4000ms since we saved directly
+} else {
             showToast('error', 'Transaction failed', `https://testnet.arcscan.app/tx/${hash}`, 'View Explorer');
             setTxStatus('idle');
         }
@@ -181,27 +226,6 @@ export default function EscrowForm({ onPaymentCreated }: { onPaymentCreated?: ()
       <div className="flex flex-col items-center justify-center py-16 animate-fade-in-up">
         <div className="w-12 h-12 rounded-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center mb-4"><AlertCircle className="w-6 h-6 text-slate-400" /></div>
         <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Connect your wallet to access the portal</p>
-      </div>
-    );
-  }
-
-  // SUCCESS ANIMATION STATE
-  if (txStatus === 'success') {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 animate-fade-in text-center space-y-6">
-        <div className="relative">
-          <div className="absolute inset-0 rounded-full bg-emerald-400 dark:bg-emerald-500 animate-ping opacity-20 dark:opacity-30 scale-150"></div>
-          <div className="w-20 h-20 rounded-full bg-emerald-50 dark:bg-emerald-500/10 border-4 border-emerald-500 flex items-center justify-center relative z-10 animate-bounce-slight">
-            <Check className="w-10 h-10 text-emerald-500" strokeWidth={3} />
-          </div>
-        </div>
-        <div className="space-y-2">
-          <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">Escrow Secured</h2>
-          <p className="text-slate-500 dark:text-slate-400 font-medium">Funds locked on-chain successfully.</p>
-        </div>
-        <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 text-sm font-bold uppercase tracking-wider mt-4 animate-pulse">
-          <Loader2 className="animate-spin" size={16} /> Redirecting to Activity...
-        </div>
       </div>
     );
   }
@@ -314,10 +338,13 @@ export default function EscrowForm({ onPaymentCreated }: { onPaymentCreated?: ()
             <button onClick={handleAction} disabled={!isFormValid || hasInsufficientBalance} className={`w-full py-3.5 rounded-xl font-bold text-sm uppercase tracking-wide transition-all duration-200 ${isFormValid && !hasInsufficientBalance ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-[0_4px_14px_rgba(79,70,229,0.3)] dark:shadow-[0_4px_20px_rgba(79,70,229,0.4)] active:scale-[0.98]' : hasInsufficientBalance ? 'bg-rose-50 dark:bg-rose-500/10 text-rose-500 dark:text-rose-400 cursor-not-allowed border border-rose-200 dark:border-rose-500/20' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed border border-slate-200 dark:border-slate-700'}`}>{buttonText}</button>
           )}
 
-          {(txStatus === 'pending' || txStatus === 'processing') && (
+          {(txStatus === 'pending' || txStatus === 'processing' || txStatus === 'indexing') && (
             <div className={`w-full py-3.5 rounded-xl border flex items-center justify-center gap-2.5 text-sm font-bold tracking-wide uppercase border-indigo-200 dark:border-indigo-500/30 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 animate-pulse`}>
               <Loader2 className="animate-spin text-indigo-600 dark:text-indigo-400" size={16} />
-              <span>{txStatus === 'pending' ? 'Confirm in Wallet...' : 'Processing...'}</span>
+              <span>
+                {txStatus === 'pending' ? 'Confirm in Wallet...' : 
+                 txStatus === 'indexing' ? 'Syncing to Ledger...' : 'Processing...'}
+              </span>
             </div>
           )}
         </div>

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAccount } from 'wagmi';
-import { Award, Flame, CalendarCheck, Loader2, CheckCircle, Clock, Zap, UserPlus, MessageCircle, Twitter, ArrowRightLeft, Repeat, ShieldAlert, CheckCircle2, Scale, PlusCircle, ShieldCheck, History, Ban, Undo2, BookOpen, Send } from 'lucide-react';
+import { Award, Flame, CalendarCheck, Loader2, CheckCircle, Clock, Zap, UserPlus, MessageCircle, Twitter, ArrowRightLeft, Repeat, ShieldAlert, CheckCircle2, Scale, PlusCircle, ShieldCheck, History, Ban, Undo2, BookOpen, Send, AlertTriangle } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import { useToast } from './Toast';
 import ProfileAvatar from './ProfileAvatar';
@@ -90,7 +90,6 @@ export default function Quests({ userStats, fetchUserStats, processQuestClaim }:
   return (
     <div className="w-full animate-fade-in pb-8 space-y-4">
       
-      {/* Top Banner with Safely Scaled ProfileAvatar */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
         <div className="flex items-center gap-3">
           
@@ -120,7 +119,6 @@ export default function Quests({ userStats, fetchUserStats, processQuestClaim }:
 
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
         
-        {/* Segmented Tabs */}
         <div className="p-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20">
           <div className="flex p-1 bg-slate-200/50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-xl">
             <button onClick={() => setActiveTab('once')} className={`flex-1 py-1.5 text-xs sm:text-sm font-bold rounded-lg flex items-center justify-center gap-2 transition-all ${activeTab === 'once' ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200/50 dark:border-slate-700/50' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 border border-transparent'}`}>
@@ -144,7 +142,6 @@ export default function Quests({ userStats, fetchUserStats, processQuestClaim }:
                 {renderQuestButton('setup_username', 50, false, () => {}, !isUsernameSet)}
               </div>
 
-              {/* CHANGE: Updated text to reflect picture upload rather than random colors */}
               <div className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
                 <div className="flex gap-3 items-center">
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-indigo-50 text-indigo-500 dark:bg-indigo-500/10"><UserPlus size={16} /></div>
@@ -207,7 +204,6 @@ export default function Quests({ userStats, fetchUserStats, processQuestClaim }:
                 </button>
               </div>
 
-              {/* CHANGE: Changed 'Mediated Escrow Dailies' to 'Mediated Escrow Missions' */}
               <div className="px-5 py-1.5 bg-slate-50 dark:bg-slate-900 border-y border-slate-100 dark:border-slate-800"><span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5"><ShieldAlert size={10}/> Mediated Escrow Missions</span></div>
               <div className="p-3.5 sm:p-4 flex justify-between items-center hover:bg-slate-50 dark:hover:bg-slate-800/30">
                 <div className="flex gap-3 items-center"><ArrowRightLeft size={14} className="text-slate-400"/><div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Send Mediated Escrow</p></div></div>
@@ -221,8 +217,19 @@ export default function Quests({ userStats, fetchUserStats, processQuestClaim }:
                 <div className="flex gap-3 items-center"><Scale size={14} className="text-slate-400"/><div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Serve as Arbiter</p></div></div>
                 {renderQuestButton('daily_arb_med', 30, true, () => {}, true)}
               </div>
+              <div className="p-3.5 sm:p-4 flex justify-between items-center hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                <div className="flex gap-3 items-center"><AlertTriangle size={14} className="text-slate-400"/><div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Raise a Dispute</p></div></div>
+                {renderQuestButton('daily_dispute_med', 15, true, () => {}, true)}
+              </div>
+              <div className="p-3.5 sm:p-4 flex justify-between items-center hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                <div className="flex gap-3 items-center"><CheckCircle size={14} className="text-slate-400"/><div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Release Funds to Receiver</p></div></div>
+                {renderQuestButton('daily_rel_recv_med', 20, true, () => {}, true)}
+              </div>
+              <div className="p-3.5 sm:p-4 flex justify-between items-center hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                <div className="flex gap-3 items-center"><Undo2 size={14} className="text-slate-400"/><div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Refund the Sender</p></div></div>
+                {renderQuestButton('daily_ref_send_med', 20, true, () => {}, true)}
+              </div>
 
-              {/* CHANGE: Changed 'Bonded Escrow Dailies' to 'Bonded Escrow Missions' */}
               <div className="px-5 py-1.5 bg-slate-50 dark:bg-slate-900 border-y border-slate-100 dark:border-slate-800"><span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5"><Flame size={10}/> Bonded Escrow Missions</span></div>
               <div className="p-3.5 sm:p-4 flex justify-between items-center hover:bg-slate-50 dark:hover:bg-slate-800/30">
                 <div className="flex gap-3 items-center"><PlusCircle size={14} className="text-slate-400"/><div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Create Bonded Escrow</p></div></div>
@@ -233,22 +240,21 @@ export default function Quests({ userStats, fetchUserStats, processQuestClaim }:
                 {renderQuestButton('daily_recv_bond', 30, true, () => {}, true)}
               </div>
 
-              {/* CHANGE: Changed 'Timelocked Dailies' to 'Timelocked Missions' */}
               <div className="px-5 py-1.5 bg-slate-50 dark:bg-slate-900 border-y border-slate-100 dark:border-slate-800"><span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5"><Clock size={10}/> Timelocked Missions</span></div>
               <div className="p-3.5 sm:p-4 flex justify-between items-center hover:bg-slate-50 dark:hover:bg-slate-800/30">
-                <div className="flex gap-3 items-center"><History size={14} className="text-slate-400"/><div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Send Timelocked</p></div></div>
+                <div className="flex gap-3 items-center"><History size={14} className="text-slate-400"/><div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Send Timelocked Escrow</p></div></div>
                 {renderQuestButton('daily_send_time', 15, true, () => {}, true)}
               </div>
               <div className="p-3.5 sm:p-4 flex justify-between items-center hover:bg-slate-50 dark:hover:bg-slate-800/30">
-                <div className="flex gap-3 items-center"><CheckCircle size={14} className="text-slate-400"/><div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Receive Timelocked</p></div></div>
+                <div className="flex gap-3 items-center"><CheckCircle size={14} className="text-slate-400"/><div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Receive Timelocked Escrow</p></div></div>
                 {renderQuestButton('daily_recv_time', 15, true, () => {}, true)}
               </div>
               <div className="p-3.5 sm:p-4 flex justify-between items-center hover:bg-slate-50 dark:hover:bg-slate-800/30">
-                <div className="flex gap-3 items-center"><Ban size={14} className="text-slate-400"/><div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Decline Timelocked</p></div></div>
+                <div className="flex gap-3 items-center"><Ban size={14} className="text-slate-400"/><div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Decline Timelocked Escrow</p></div></div>
                 {renderQuestButton('daily_dec_time', 5, true, () => {}, true)}
               </div>
               <div className="p-3.5 sm:p-4 flex justify-between items-center hover:bg-slate-50 dark:hover:bg-slate-800/30">
-                <div className="flex gap-3 items-center"><Undo2 size={14} className="text-slate-400"/><div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Reclaim Timelocked</p></div></div>
+                <div className="flex gap-3 items-center"><Undo2 size={14} className="text-slate-400"/><div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Reclaim Timelocked Escrow</p></div></div>
                 {renderQuestButton('daily_rec_time', 5, true, () => {}, true)}
               </div>
             </>
