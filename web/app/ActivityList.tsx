@@ -9,7 +9,6 @@ import { CONTRACT_ADDRESS, CONTRACT_ABI, USDC_ADDRESS, ERC20_ABI } from './const
 import { useToast } from './Toast';
 import { supabase } from './supabaseClient';
 
-const [declineConfirmText, setDeclineConfirmText] = useState('');
 const ARC_RPC = 'https://rpc.testnet.arc.network';
 
 async function getReceiptDirect(txHash: string): Promise<{ status: 'success' | 'failed' } | null> {
@@ -47,6 +46,9 @@ export default function ActivityList({ className = '', onActivityUpdate }: { cla
   const [disputeAction, setDisputeAction] = useState<any | null>(null);
   const [resolveAction, setResolveAction] = useState<any | null>(null);
   const [resolveConfirmText, setResolveConfirmText] = useState('');
+  
+  const [declineConfirmText, setDeclineConfirmText] = useState('');
+  
   const [now, setNow] = useState(Math.floor(Date.now() / 1000));
   
   const [copiedHash, setCopiedHash] = useState<string | null>(null);
@@ -85,11 +87,10 @@ export default function ActivityList({ className = '', onActivityUpdate }: { cla
     } catch (e) {} finally { setIsLoading(false); }
   }, [address]);
 
-  // SURGICAL FIX: Give Supabase a split second to save the new transaction before fetching the list on component load
   useEffect(() => { 
     if (address) { 
       setIsLoading(true); 
-      loadFromDatabase(); // Restored to fetch instantly
+      loadFromDatabase();
       const interval = setInterval(loadFromDatabase, 15000); 
       return () => clearInterval(interval); 
     } 
@@ -160,9 +161,10 @@ export default function ActivityList({ className = '', onActivityUpdate }: { cla
           };
           if (updatedResolvedTo) updatePayload.resolved_to = updatedResolvedTo;
           
+          if (action === 'dispute') updatePayload.disputed_by = address?.toLowerCase();
+          
           await supabase.from('escrow_payments').update(updatePayload).eq('id', id);
 
-          // SURGICAL FIX: Wait 500ms before re-fetching so the database has time to confirm the save
           setTimeout(() => {
               loadFromDatabase(); 
               if (onActivityUpdate) onActivityUpdate();
@@ -263,15 +265,19 @@ export default function ActivityList({ className = '', onActivityUpdate }: { cla
           let warningText = "";
           let warningIconColor = "text-indigo-500 dark:text-indigo-400";
 
-          if (p.deadline !== "0" && !p.isDeclined && p.status !== 3 && p.status !== 4 && p.status !== 2 && p.pType !== 3) {
-              if (isExpired && isSender && (p.status === 0 || p.status === 1)) {
+          // ✅ BULLETPROOF FIX: Explicitly whitelist only Basic (0) and Timelocked (1)
+          const isBasicOrTimelocked = Number(p.pType) === 0 || Number(p.pType) === 1;
+          const isActiveStatus = p.status === 0 || p.status === 1;
+
+          if (Number(p.deadline) !== 0 && !p.isDeclined && isActiveStatus && isBasicOrTimelocked) {
+              if (isExpired && isSender) {
                   showWarning = true;
                   warningText = "Deadline Passed: The receiver did not act in time. You may now reclaim your funds.";
                   warningIconColor = "text-amber-500 dark:text-amber-400";
-              } else if (!isExpired && (p.status === 0 || p.status === 1)) {
+              } else if (!isExpired) {
                   showWarning = true;
                   const isCoolingOff = now < Number(p.availableAt);
-                  if (isReceiver && p.pType === 1 && isCoolingOff) {
+                  if (isReceiver && Number(p.pType) === 1 && isCoolingOff) {
                       warningText = `Cooling Off: This payment unlocks in ${formatTimeRemaining(Number(p.availableAt))}.`;
                   } else if (isReceiver) {
                       warningText = `Action Required: This payment expires in ${timeLeftString}. Ensure you claim the funds before the deadline, or the sender can reclaim them.`;

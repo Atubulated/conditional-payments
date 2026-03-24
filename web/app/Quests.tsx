@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAccount } from 'wagmi';
-import { Award, Flame, CalendarCheck, CheckCircle, Clock, UserPlus, MessageCircle, Twitter, ArrowRightLeft, Repeat, ShieldAlert, CheckCircle2, Scale, PlusCircle, ShieldCheck, History, Ban, Undo2, BookOpen, Send, AlertTriangle } from 'lucide-react';
+import { Award, Flame, CalendarCheck, CheckCircle, Clock, UserPlus, MessageCircle, Twitter, ArrowRightLeft, Repeat, ShieldAlert, CheckCircle2, Scale, PlusCircle, ShieldCheck, History, Ban, Undo2, BookOpen, Send, AlertTriangle, Lock, Info } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import { useToast } from './Toast';
 import ProfileAvatar from './ProfileAvatar';
@@ -17,6 +17,19 @@ export default function Quests({ userStats, fetchUserStats, processQuestClaim }:
   const [timeUntilMidnight, setTimeUntilMidnight] = useState('');
   const [activeTab, setActiveTab] = useState<'once' | 'daily'>('once');
   const [escrowActivity, setEscrowActivity] = useState<any[]>([]);
+
+  // 1. Define conditions first so they are available to build the master checkpoint.
+  const isUsernameSet = userStats?.username && !userStats.username.startsWith('User_');
+  const isDpSet = userStats?.avatarId !== 0;
+
+  // 2. Build the all-encompassing master checkpoint.
+  // This checks for the display picture, username, AND all three social accounts.
+  const allCheckpointsMet = 
+    isDpSet && 
+    isUsernameSet && 
+    userStats?.discordConnected && 
+    userStats?.telegramConnected && 
+    userStats?.twitterConnected;
 
   useEffect(() => {
     const calculateTimeLeft = () => {
@@ -51,6 +64,13 @@ export default function Quests({ userStats, fetchUserStats, processQuestClaim }:
 
   const handleCheckIn = async () => {
     if (!address || isCheckingIn) return;
+    
+    // 3. Prevent check-ins if the master checkpoints haven't been met.
+    if (!allCheckpointsMet) {
+      showToast('error', 'Checkpoints Required', 'Please connect all socials, set a username, and upload a display picture to unlock Daily Check-ins.');
+      return;
+    }
+
     setIsCheckingIn(true);
     try {
       let newStreak = userStats?.streak || 0;
@@ -85,9 +105,6 @@ export default function Quests({ userStats, fetchUserStats, processQuestClaim }:
   const isCompleted = (id: string, isDaily: boolean = false) =>
     isDaily ? completedQuests.includes(`${id}_${today}`) : completedQuests.includes(id);
 
-  const isUsernameSet = userStats?.username && !userStats.username.startsWith('User_');
-  const isDpSet = userStats?.avatarId !== 0;
-
   // Today's date boundaries
   const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
   const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);
@@ -97,54 +114,50 @@ export default function Quests({ userStats, fetchUserStats, processQuestClaim }:
     return created >= todayStart && created <= todayEnd;
   });
 
-  // ✅ Timelocked quest checks
-  const hasSentTimelocked = todayPayments.some(p =>
-    p.sender === address?.toLowerCase() && p.p_type === 1);
-  const hasReceivedTimelocked = todayPayments.some(p =>
-    p.receiver === address?.toLowerCase() && p.p_type === 1 && p.status >= 3);
-  const hasDeclinedTimelocked = todayPayments.some(p =>
-    p.receiver === address?.toLowerCase() && p.p_type === 1 && p.is_declined === true);
-  const hasReclaimedTimelocked = todayPayments.some(p =>
-    p.sender === address?.toLowerCase() && p.p_type === 1 && p.status === 4);
+  // Timelocked quest checks
+  const hasSentTimelocked = todayPayments.some(p => p.sender === address?.toLowerCase() && p.p_type === 1);
+  const hasReceivedTimelocked = todayPayments.some(p => p.receiver === address?.toLowerCase() && p.p_type === 1 && p.status >= 3);
+  const hasDeclinedTimelocked = todayPayments.some(p => p.receiver === address?.toLowerCase() && p.p_type === 1 && p.is_declined === true);
+  const hasReclaimedTimelocked = todayPayments.some(p => p.sender === address?.toLowerCase() && p.p_type === 1 && p.status === 4);
 
-  // ✅ Mediated quest checks
-  const hasSentMediated = todayPayments.some(p =>
-    p.sender === address?.toLowerCase() && p.p_type === 2);
-  const hasReceivedMediated = todayPayments.some(p =>
-    p.receiver === address?.toLowerCase() && p.p_type === 2 && p.status >= 3);
-  const hasServedAsArbiter = todayPayments.some(p =>
-    p.arbiter === address?.toLowerCase() && p.p_type === 2 && p.status === 3);
-  const hasRaisedDispute = todayPayments.some(p =>
-    (p.sender === address?.toLowerCase() || p.receiver === address?.toLowerCase()) && p.status === 2);
-  const hasReleasedFunds = todayPayments.some(p =>
-    p.sender === address?.toLowerCase() && p.p_type === 2 && p.status === 3);
-  const hasRefundedSender = todayPayments.some(p =>
-    p.arbiter === address?.toLowerCase() && p.p_type === 2 &&
-    p.resolved_to?.toLowerCase() === p.sender?.toLowerCase());
+  // Mediated quest checks
+  const hasSentMediated = todayPayments.some(p => p.sender === address?.toLowerCase() && p.p_type === 2);
+  const hasReceivedMediated = todayPayments.some(p => p.receiver === address?.toLowerCase() && p.p_type === 2 && p.status >= 3);
+  const hasServedAsArbiter = todayPayments.some(p => p.arbiter === address?.toLowerCase() && p.p_type === 2 && p.status === 3);
+  const hasReleasedFunds = todayPayments.some(p => p.sender === address?.toLowerCase() && p.p_type === 2 && p.status === 3);
+  const hasRefundedSender = todayPayments.some(p => p.arbiter === address?.toLowerCase() && p.p_type === 2 && p.resolved_to?.toLowerCase() === p.sender?.toLowerCase());
+  // PRESERVED FIX: Accurately checks who raised the dispute
+  const hasRaisedDispute = todayPayments.some(p => p.p_type === 2 && (p.sender === address?.toLowerCase() || p.receiver === address?.toLowerCase()) && (p.status === 2 || (p.status === 3 && p.resolved_to !== null)));
 
-  // ✅ Bonded quest checks
-  const hasCreatedBonded = todayPayments.some(p =>
-    p.sender === address?.toLowerCase() && p.p_type === 3);
-  const hasReceivedBonded = todayPayments.some(p =>
-    p.receiver === address?.toLowerCase() && p.p_type === 3 && p.status >= 1);
-  const hasDeclinedBonded = todayPayments.some(p =>
-    p.receiver === address?.toLowerCase() && p.p_type === 3 && p.is_declined === true);
-  const hasSlashedBonded = todayPayments.some(p =>
-    p.sender === address?.toLowerCase() && p.p_type === 3 && p.status === 3 &&
-    p.resolved_to === '0x0000000000000000000000000000000000000000');
+  // Bonded quest checks
+  const hasCreatedBonded = todayPayments.some(p => p.sender === address?.toLowerCase() && p.p_type === 3);
+  const hasReceivedBonded = todayPayments.some(p => p.receiver === address?.toLowerCase() && p.p_type === 3 && p.status >= 1);
+  const hasDeclinedBonded = todayPayments.some(p => p.receiver === address?.toLowerCase() && p.p_type === 3 && p.is_declined === true);
+  const hasSlashedBonded = todayPayments.some(p => p.sender === address?.toLowerCase() && p.p_type === 3 && p.status === 3 && p.resolved_to === '0x0000000000000000000000000000000000000000');
 
-  const renderQuestButton = (questId: string, xpReward: number, isDaily: boolean, onClick: () => void, disabled: boolean = false) => {
+  // renderQuestButton requiresCheckpoints is set to true by default for advanced quests
+  const renderQuestButton = (questId: string, xpReward: number, isDaily: boolean, onClick: () => void, disabled: boolean = false, requiresCheckpoints: boolean = true) => {
     const done = isCompleted(questId, isDaily);
+    
     if (done) return (
       <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold text-xs bg-emerald-50 dark:bg-emerald-900/30 px-3 py-1.5 rounded-xl border border-emerald-200 dark:border-emerald-800">
         <CheckCircle size={14} /> Claimed
       </div>
     );
+
+    // If advanced/daily quest requires the master checkpoints, and they aren't met, return a "Locked 🔒" button.
+    if (requiresCheckpoints && !allCheckpointsMet) return (
+      <button disabled className="px-4 py-1.5 rounded-xl font-bold text-xs shrink-0 bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700 cursor-not-allowed flex items-center gap-1.5 transition-all">
+        Locked <Lock size={12} />
+      </button>
+    );
+
     if (disabled) return (
       <button disabled className="px-4 py-1.5 rounded-xl font-bold text-xs shrink-0 bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700 cursor-not-allowed transition-all">
         Claim +{xpReward} XP
       </button>
     );
+
     return (
       <button
         onClick={() => { onClick(); processQuestClaim(questId, xpReward, isDaily); }}
@@ -198,17 +211,28 @@ export default function Quests({ userStats, fetchUserStats, processQuestClaim }:
           </div>
         </div>
 
+        {/* ✅ RESTORED INDIGO BANNER & UPDATED TEXT */}
+        {!allCheckpointsMet && (
+          <div className="bg-indigo-50 dark:bg-indigo-900/20 border-b border-indigo-100 dark:border-indigo-800/50 p-3.5 flex gap-3 items-start">
+            <Info size={16} className="text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
+            <p className="text-[11px] sm:text-xs text-indigo-800 dark:text-indigo-300 font-medium leading-relaxed">
+              <strong>Profile Setup Required:</strong> Set a display picture, a username, and connect all three social accounts in your Profile to unlock daily missions and advanced quests.
+            </p>
+          </div>
+        )}
+
         <div className="divide-y divide-slate-100 dark:divide-slate-800/50">
 
           {/* ───── ONE-TIME MILESTONES ───── */}
           {activeTab === 'once' && (
             <>
+              {/* Profile setup and social quests remain unlocked (requiresCheckpoints = false) */}
               <div className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
                 <div className="flex gap-3 items-center">
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-indigo-50 text-indigo-500 dark:bg-indigo-500/10"><UserPlus size={16} /></div>
                   <div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Connect Wallet</p><p className="text-[10px] text-slate-500 mt-0.5">Connect your wallet to the platform.</p></div>
                 </div>
-                {renderQuestButton('connect_wallet', 50, false, () => {}, false)}
+                {renderQuestButton('connect_wallet', 50, false, () => {}, false, false)}
               </div>
 
               <div className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
@@ -216,7 +240,7 @@ export default function Quests({ userStats, fetchUserStats, processQuestClaim }:
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-indigo-50 text-indigo-500 dark:bg-indigo-500/10"><UserPlus size={16} /></div>
                   <div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Setup Username</p><p className="text-[10px] text-slate-500 mt-0.5">Customize your display name in the Profile tab.</p></div>
                 </div>
-                {renderQuestButton('setup_username', 50, false, () => {}, !isUsernameSet)}
+                {renderQuestButton('setup_username', 50, false, () => {}, !isUsernameSet, false)}
               </div>
 
               <div className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
@@ -224,7 +248,7 @@ export default function Quests({ userStats, fetchUserStats, processQuestClaim }:
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-indigo-50 text-indigo-500 dark:bg-indigo-500/10"><UserPlus size={16} /></div>
                   <div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Setup Display Picture</p><p className="text-[10px] text-slate-500 mt-0.5">Upload a custom profile picture in the Profile tab.</p></div>
                 </div>
-                {renderQuestButton('setup_dp', 50, false, () => {}, !isDpSet)}
+                {renderQuestButton('setup_dp', 50, false, () => {}, !isDpSet, false)}
               </div>
 
               <div className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
@@ -232,7 +256,7 @@ export default function Quests({ userStats, fetchUserStats, processQuestClaim }:
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-indigo-50 text-indigo-500 dark:bg-indigo-500/10"><MessageCircle size={16} /></div>
                   <div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Connect Discord</p><p className="text-[10px] text-slate-500 mt-0.5">Link your Discord account via the Profile settings.</p></div>
                 </div>
-                {renderQuestButton('connect_discord', 100, false, () => {}, !userStats?.discordConnected)}
+                {renderQuestButton('connect_discord', 100, false, () => {}, !userStats?.discordConnected, false)}
               </div>
 
               <div className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
@@ -240,7 +264,7 @@ export default function Quests({ userStats, fetchUserStats, processQuestClaim }:
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-indigo-50 text-indigo-500 dark:bg-indigo-500/10"><Send size={16} /></div>
                   <div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Connect Telegram</p><p className="text-[10px] text-slate-500 mt-0.5">Link your Telegram account via the Profile settings.</p></div>
                 </div>
-                {renderQuestButton('connect_telegram', 100, false, () => {}, !userStats?.telegramConnected)}
+                {renderQuestButton('connect_telegram', 100, false, () => {}, !userStats?.telegramConnected, false)}
               </div>
 
               <div className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
@@ -248,15 +272,16 @@ export default function Quests({ userStats, fetchUserStats, processQuestClaim }:
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-indigo-50 text-indigo-500 dark:bg-indigo-500/10"><Twitter size={16} /></div>
                   <div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Connect Twitter / X</p><p className="text-[10px] text-slate-500 mt-0.5">Link your X account via the Profile settings.</p></div>
                 </div>
-                {renderQuestButton('connect_twitter', 100, false, () => {}, !userStats?.twitterConnected)}
+                {renderQuestButton('connect_twitter', 100, false, () => {}, !userStats?.twitterConnected, false)}
               </div>
 
+              {/* Advanced quests now use the default (requiresCheckpoints = true) and get locked */}
               <div className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
                 <div className="flex gap-3 items-center">
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-indigo-50 text-indigo-500 dark:bg-indigo-500/10"><BookOpen size={16} /></div>
                   <div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Protocol Scholar</p><p className="text-[10px] text-slate-500 mt-0.5">Read all 3 escrow modules in the Guide tab.</p></div>
                 </div>
-                {renderQuestButton('read_guide', 50, false, () => {}, !hasReadGuides)}
+                {renderQuestButton('read_guide', 50, false, () => {}, !hasReadGuides, true)}
               </div>
 
               <div className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
@@ -265,11 +290,11 @@ export default function Quests({ userStats, fetchUserStats, processQuestClaim }:
                   <div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Generate Volume</p><p className="text-[10px] text-slate-500 mt-0.5">Complete escrows totaling at least $20 USDC in volume.</p></div>
                 </div>
                 {(() => {
-  const totalVolume = escrowActivity
-    .filter(p => p.sender === address?.toLowerCase() && p.status === 3)
-    .reduce((sum, p) => sum + Number(p.amount), 0) / 1e6;
-  return renderQuestButton('gen_volume', 1000, false, () => {}, totalVolume < 20);
-})()}
+                  const totalVolume = escrowActivity
+                    .filter(p => p.sender === address?.toLowerCase() && p.status === 3)
+                    .reduce((sum, p) => sum + Number(p.amount), 0) / 1e6;
+                  return renderQuestButton('gen_volume', 1000, false, () => {}, totalVolume < 20, true);
+                })()}
               </div>
             </>
           )}
@@ -283,8 +308,17 @@ export default function Quests({ userStats, fetchUserStats, processQuestClaim }:
                   <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${canCheckIn ? 'bg-amber-100 text-amber-600 dark:bg-amber-500/20' : 'bg-emerald-50 text-emerald-500 dark:bg-emerald-500/10'}`}><CalendarCheck size={16} /></div>
                   <div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Daily Check-in</p><p className="text-[10px] text-slate-500 mt-0.5">Return every 24 hours to earn XP and build your streak.</p></div>
                 </div>
-                <button onClick={handleCheckIn} disabled={!canCheckIn || isCheckingIn} className={`px-4 py-1.5 rounded-xl font-bold text-xs shrink-0 transition-all ${canCheckIn ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-sm' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed flex items-center gap-1.5'}`}>
-                  {isCheckingIn ? '...' : canCheckIn ? 'Claim +10 XP' : <><Clock size={12} /> Next in {timeUntilMidnight}</>}
+                <button 
+                  onClick={handleCheckIn} 
+                  disabled={!canCheckIn || isCheckingIn || !allCheckpointsMet} 
+                  className={`px-4 py-1.5 rounded-xl font-bold text-xs shrink-0 transition-all flex items-center gap-1.5
+                    ${!allCheckpointsMet ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed' : 
+                      canCheckIn ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-sm' : 
+                      'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed'}`}
+                >
+                  {!allCheckpointsMet ? <><Lock size={12} /> Locked</> : 
+                   isCheckingIn ? '...' : 
+                   canCheckIn ? 'Claim +10 XP' : <><Clock size={12} /> Next in {timeUntilMidnight}</>}
                 </button>
               </div>
 
@@ -294,27 +328,27 @@ export default function Quests({ userStats, fetchUserStats, processQuestClaim }:
               </div>
               <div className="p-3.5 sm:p-4 flex justify-between items-center hover:bg-slate-50 dark:hover:bg-slate-800/30">
                 <div className="flex gap-3 items-center"><ArrowRightLeft size={14} className="text-slate-400" /><div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Send Mediated Escrow</p></div></div>
-                {renderQuestButton('daily_send_med', 20, true, () => {}, !hasSentMediated)}
+                {renderQuestButton('daily_send_med', 20, true, () => {}, !hasSentMediated, true)}
               </div>
               <div className="p-3.5 sm:p-4 flex justify-between items-center hover:bg-slate-50 dark:hover:bg-slate-800/30">
                 <div className="flex gap-3 items-center"><CheckCircle2 size={14} className="text-slate-400" /><div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Receive Mediated Escrow</p></div></div>
-                {renderQuestButton('daily_recv_med', 20, true, () => {}, !hasReceivedMediated)}
+                {renderQuestButton('daily_recv_med', 20, true, () => {}, !hasReceivedMediated, true)}
               </div>
               <div className="p-3.5 sm:p-4 flex justify-between items-center hover:bg-slate-50 dark:hover:bg-slate-800/30">
                 <div className="flex gap-3 items-center"><Scale size={14} className="text-slate-400" /><div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Serve as Arbiter</p></div></div>
-                {renderQuestButton('daily_arb_med', 30, true, () => {}, !hasServedAsArbiter)}
+                {renderQuestButton('daily_arb_med', 30, true, () => {}, !hasServedAsArbiter, true)}
               </div>
               <div className="p-3.5 sm:p-4 flex justify-between items-center hover:bg-slate-50 dark:hover:bg-slate-800/30">
                 <div className="flex gap-3 items-center"><AlertTriangle size={14} className="text-slate-400" /><div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Raise a Dispute</p></div></div>
-                {renderQuestButton('daily_dispute_med', 15, true, () => {}, !hasRaisedDispute)}
+                {renderQuestButton('daily_dispute_med', 15, true, () => {}, !hasRaisedDispute, true)}
               </div>
               <div className="p-3.5 sm:p-4 flex justify-between items-center hover:bg-slate-50 dark:hover:bg-slate-800/30">
                 <div className="flex gap-3 items-center"><CheckCircle size={14} className="text-slate-400" /><div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Release Funds to Receiver</p></div></div>
-                {renderQuestButton('daily_rel_recv_med', 20, true, () => {}, !hasReleasedFunds)}
+                {renderQuestButton('daily_rel_recv_med', 20, true, () => {}, !hasReleasedFunds, true)}
               </div>
               <div className="p-3.5 sm:p-4 flex justify-between items-center hover:bg-slate-50 dark:hover:bg-slate-800/30">
                 <div className="flex gap-3 items-center"><Undo2 size={14} className="text-slate-400" /><div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Refund the Sender</p></div></div>
-                {renderQuestButton('daily_ref_send_med', 20, true, () => {}, !hasRefundedSender)}
+                {renderQuestButton('daily_ref_send_med', 20, true, () => {}, !hasRefundedSender, true)}
               </div>
 
               {/* Bonded Missions */}
@@ -323,19 +357,19 @@ export default function Quests({ userStats, fetchUserStats, processQuestClaim }:
               </div>
               <div className="p-3.5 sm:p-4 flex justify-between items-center hover:bg-slate-50 dark:hover:bg-slate-800/30">
                 <div className="flex gap-3 items-center"><PlusCircle size={14} className="text-slate-400" /><div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Create Bonded Escrow</p></div></div>
-                {renderQuestButton('daily_create_bond', 30, true, () => {}, !hasCreatedBonded)}
+                {renderQuestButton('daily_create_bond', 30, true, () => {}, !hasCreatedBonded, true)}
               </div>
               <div className="p-3.5 sm:p-4 flex justify-between items-center hover:bg-slate-50 dark:hover:bg-slate-800/30">
                 <div className="flex gap-3 items-center"><ShieldCheck size={14} className="text-slate-400" /><div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Receive Bonded Escrow</p></div></div>
-                {renderQuestButton('daily_recv_bond', 30, true, () => {}, !hasReceivedBonded)}
+                {renderQuestButton('daily_recv_bond', 30, true, () => {}, !hasReceivedBonded, true)}
               </div>
               <div className="p-3.5 sm:p-4 flex justify-between items-center hover:bg-slate-50 dark:hover:bg-slate-800/30">
                 <div className="flex gap-3 items-center"><Ban size={14} className="text-slate-400" /><div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Decline Bonded Escrow</p></div></div>
-                {renderQuestButton('daily_dec_bond', 5, true, () => {}, !hasDeclinedBonded)}
+                {renderQuestButton('daily_dec_bond', 5, true, () => {}, !hasDeclinedBonded, true)}
               </div>
               <div className="p-3.5 sm:p-4 flex justify-between items-center hover:bg-slate-50 dark:hover:bg-slate-800/30">
                 <div className="flex gap-3 items-center"><Flame size={14} className="text-slate-400" /><div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Dispute (Slash) Bonded Escrow</p></div></div>
-                {renderQuestButton('daily_slash_bond', 20, true, () => {}, !hasSlashedBonded)}
+                {renderQuestButton('daily_slash_bond', 20, true, () => {}, !hasSlashedBonded, true)}
               </div>
 
               {/* Timelocked Missions */}
@@ -344,19 +378,19 @@ export default function Quests({ userStats, fetchUserStats, processQuestClaim }:
               </div>
               <div className="p-3.5 sm:p-4 flex justify-between items-center hover:bg-slate-50 dark:hover:bg-slate-800/30">
                 <div className="flex gap-3 items-center"><History size={14} className="text-slate-400" /><div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Send Timelocked Escrow</p></div></div>
-                {renderQuestButton('daily_send_time', 15, true, () => {}, !hasSentTimelocked)}
+                {renderQuestButton('daily_send_time', 15, true, () => {}, !hasSentTimelocked, true)}
               </div>
               <div className="p-3.5 sm:p-4 flex justify-between items-center hover:bg-slate-50 dark:hover:bg-slate-800/30">
                 <div className="flex gap-3 items-center"><CheckCircle size={14} className="text-slate-400" /><div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Receive Timelocked Escrow</p></div></div>
-                {renderQuestButton('daily_recv_time', 15, true, () => {}, !hasReceivedTimelocked)}
+                {renderQuestButton('daily_recv_time', 15, true, () => {}, !hasReceivedTimelocked, true)}
               </div>
               <div className="p-3.5 sm:p-4 flex justify-between items-center hover:bg-slate-50 dark:hover:bg-slate-800/30">
                 <div className="flex gap-3 items-center"><Ban size={14} className="text-slate-400" /><div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Decline Timelocked Escrow</p></div></div>
-                {renderQuestButton('daily_dec_time', 5, true, () => {}, !hasDeclinedTimelocked)}
+                {renderQuestButton('daily_dec_time', 5, true, () => {}, !hasDeclinedTimelocked, true)}
               </div>
               <div className="p-3.5 sm:p-4 flex justify-between items-center hover:bg-slate-50 dark:hover:bg-slate-800/30">
                 <div className="flex gap-3 items-center"><Undo2 size={14} className="text-slate-400" /><div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Reclaim Timelocked Escrow</p></div></div>
-                {renderQuestButton('daily_rec_time', 5, true, () => {}, !hasReclaimedTimelocked)}
+                {renderQuestButton('daily_rec_time', 5, true, () => {}, !hasReclaimedTimelocked, true)}
               </div>
             </>
           )}
