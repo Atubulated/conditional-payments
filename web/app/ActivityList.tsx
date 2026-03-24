@@ -9,6 +9,7 @@ import { CONTRACT_ADDRESS, CONTRACT_ABI, USDC_ADDRESS, ERC20_ABI } from './const
 import { useToast } from './Toast';
 import { supabase } from './supabaseClient';
 
+const [declineConfirmText, setDeclineConfirmText] = useState('');
 const ARC_RPC = 'https://rpc.testnet.arc.network';
 
 async function getReceiptDirect(txHash: string): Promise<{ status: 'success' | 'failed' } | null> {
@@ -372,20 +373,39 @@ export default function ActivityList({ className = '', onActivityUpdate }: { cla
       )}
 
       {declineAction && createPortal(
-        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/60 dark:bg-black/80 backdrop-blur-sm animate-fade-in" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
-          <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl max-w-sm w-full space-y-5 shadow-2xl ring-1 ring-black/5 dark:ring-white/5 max-h-[90vh] overflow-y-auto">
-            <div className="text-center space-y-3">
-              <div className="w-12 h-12 bg-rose-50 dark:bg-rose-500/10 text-rose-500 dark:text-rose-400 border border-rose-100 dark:border-rose-500/20 rounded-full mx-auto flex items-center justify-center"><XCircle className="w-6 h-6" /></div>
-              <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Decline Offer</h2>
-              <p className="text-sm text-slate-600 dark:text-slate-400 font-medium">Are you sure you want to decline? Funds will return to the sender immediately.</p>
-            </div>
-            <div className="flex gap-2">
-              <button onClick={() => setDeclineAction(null)} className="flex-1 py-3 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-300 rounded-xl font-bold text-xs uppercase tracking-wide">Cancel</button>
-              <button onClick={() => handleDecline(declineAction.id)} className="flex-1 py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold text-xs uppercase tracking-wide">Decline</button>
-            </div>
-          </div>
-        </div>, document.body
-      )}
+  <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/60 dark:bg-black/80 backdrop-blur-sm animate-fade-in" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
+    <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl max-w-sm w-full space-y-5 shadow-2xl ring-1 ring-black/5 dark:ring-white/5 max-h-[90vh] overflow-y-auto">
+      <div className="text-center space-y-3">
+        <div className="w-12 h-12 bg-rose-50 dark:bg-rose-500/10 text-rose-500 dark:text-rose-400 border border-rose-100 dark:border-rose-500/20 rounded-full mx-auto flex items-center justify-center"><XCircle className="w-6 h-6" /></div>
+        <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Decline Offer</h2>
+        <p className="text-sm text-slate-600 dark:text-slate-400 font-medium">Are you sure you want to decline? Funds will return to the sender immediately.</p>
+      </div>
+      <div className="space-y-2">
+        <label className="text-xs font-bold text-slate-700 dark:text-slate-400 uppercase tracking-wider text-center block">
+          Type <span className="text-slate-900 dark:text-slate-100">DECLINE</span> to confirm
+        </label>
+        <input
+          autoFocus
+          type="text"
+          placeholder="DECLINE"
+          value={declineConfirmText}
+          onChange={(e) => setDeclineConfirmText(e.target.value.toUpperCase())}
+          className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-4 py-3.5 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 font-mono text-base font-bold text-center uppercase focus:outline-none focus:border-rose-500"
+        />
+      </div>
+      <div className="flex gap-2">
+        <button onClick={() => { setDeclineAction(null); setDeclineConfirmText(''); }} className="flex-1 py-3 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-300 rounded-xl font-bold text-xs uppercase tracking-wide">Cancel</button>
+        <button
+          onClick={() => { handleDecline(declineAction.id); setDeclineConfirmText(''); }}
+          disabled={declineConfirmText !== 'DECLINE'}
+          className="flex-1 py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold text-xs uppercase tracking-wide disabled:opacity-50"
+        >
+          Decline
+        </button>
+      </div>
+    </div>
+  </div>, document.body
+)}
 
       {resolveAction && createPortal(
         <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/60 dark:bg-black/80 backdrop-blur-sm animate-fade-in" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>

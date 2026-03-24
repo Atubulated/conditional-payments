@@ -264,7 +264,12 @@ export default function Quests({ userStats, fetchUserStats, processQuestClaim }:
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-indigo-50 text-indigo-500 dark:bg-indigo-500/10"><ArrowRightLeft size={16} /></div>
                   <div><p className="font-bold text-sm text-slate-900 dark:text-slate-100">Generate Volume</p><p className="text-[10px] text-slate-500 mt-0.5">Complete escrows totaling at least $20 USDC in volume.</p></div>
                 </div>
-                {renderQuestButton('gen_volume', 1000, false, () => {}, true)}
+                {(() => {
+  const totalVolume = escrowActivity
+    .filter(p => p.sender === address?.toLowerCase() && p.status === 3)
+    .reduce((sum, p) => sum + Number(p.amount), 0) / 1e6;
+  return renderQuestButton('gen_volume', 1000, false, () => {}, totalVolume < 20);
+})()}
               </div>
             </>
           )}
