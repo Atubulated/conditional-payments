@@ -97,7 +97,7 @@ export default function ProfileAvatar() {
       // 4. Update the UI and notify the user
       setAvatarUrl(publicUrl);
 window.dispatchEvent(new Event('avatar-updated')); // ✅ Tells all other instances to refresh
-showToast('success', 'Profile Updated', 'Your avatar looks great!');
+ // showToast('success', 'Profile Updated', 'Your avatar looks great!');
     } catch (error: any) {
       console.error('Upload error:', error);
       showToast('error', 'Upload Failed', error.message || 'Could not upload avatar.');
