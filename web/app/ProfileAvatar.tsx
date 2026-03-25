@@ -45,6 +45,10 @@ export default function ProfileAvatar() {
     };
 
     fetchAvatar();
+
+    // ✅ Re-fetch when another instance uploads a new avatar
+    window.addEventListener('avatar-updated', fetchAvatar);
+    return () => window.removeEventListener('avatar-updated', fetchAvatar);
   }, [address]);
 
   // Handle the file selection and Supabase upload
@@ -92,7 +96,8 @@ export default function ProfileAvatar() {
 
       // 4. Update the UI and notify the user
       setAvatarUrl(publicUrl);
-      showToast('success', 'Profile Updated', 'Your avatar looks great!');
+window.dispatchEvent(new Event('avatar-updated')); // ✅ Tells all other instances to refresh
+showToast('success', 'Profile Updated', 'Your avatar looks great!');
     } catch (error: any) {
       console.error('Upload error:', error);
       showToast('error', 'Upload Failed', error.message || 'Could not upload avatar.');
