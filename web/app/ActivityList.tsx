@@ -173,7 +173,9 @@ export default function ActivityList({ className = '', onActivityUpdate }: { cla
     } catch (e) { showToast('error', 'Failed'); }
   };
 
-  const getStatusDisplay = (p: any, isSender: boolean, isReceiver: boolean) => {
+  const getStatusDisplay = (p: any, isSender: boolean, isReceiver: boolean, isArbiter: boolean) => {
+    const isStrictlyArbiter = isArbiter && !isSender && !isReceiver;
+
     if (p.isDeclined) return { text: 'Declined', color: 'text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/10 border-rose-200 dark:border-rose-500/20', icon: XCircle };
     const status = p.status; const deadline = Number(p.deadline); const availableAt = Number(p.availableAt);
     
@@ -184,19 +186,41 @@ export default function ActivityList({ className = '', onActivityUpdate }: { cla
       return { text: 'Completed', color: 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/20', icon: CheckCircle };
     }
     
-    if (status === 2) return { text: 'In Dispute', color: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/20', icon: AlertTriangle };
+    if (status === 2) {
+      if (isArbiter) {
+        return {
+          text: 'Awaiting Your Decision',
+          color: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/20',
+          icon: AlertTriangle
+        };
+      }
+      return {
+        text: 'Awaiting Arbiter Decision',
+        color: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/20',
+        icon: AlertTriangle
+      };
+    }
     
-    if (now > deadline && deadline !== 0) {
+    if (p.pType === 1 && now > deadline && deadline !== 0) {
       if (isSender && (status === 0 || status === 1)) return { text: 'Ready to Reclaim', color: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/20', icon: Undo2 };
       return { text: 'Expired', color: 'text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700', icon: Clock };
     }
 
-    if (status === 1) return { text: p.pType === 3 ? 'Active' : `Active: ${formatTimeRemaining(deadline)}`, color: 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 border-indigo-200 dark:border-indigo-500/20', icon: Shield };
+    if (status === 1) {
+      if (isStrictlyArbiter) return { text: 'No Action Needed Yet', color: 'text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700', icon: Shield };
+      return { text: p.pType === 3 ? 'Active' : `Active: ${formatTimeRemaining(deadline)}`, color: 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 border-indigo-200 dark:border-indigo-500/20', icon: Shield };
+    }
     
     if (status === 0) {
+      if (isStrictlyArbiter) return { text: 'No Action Needed Yet', color: 'text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700', icon: Shield };
+      
       if (p.pType === 1) {
         if (now < availableAt) return { text: `Locked: ${formatTimeRemaining(availableAt)}`, color: 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 border-indigo-200 dark:border-indigo-500/20', icon: Snowflake };
         return isReceiver ? { text: 'Ready to Claim', color: 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/20', icon: CheckCircle } : { text: 'Awaiting Claim', color: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/20', icon: Clock };
+      }
+      if (p.pType === 2) {
+        if (isReceiver) return { text: 'Awaiting Action', color: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/20', icon: Clock };
+        return { text: 'Awaiting Receiver', color: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/20', icon: Clock };
       }
       return { text: 'Awaiting Action', color: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/20', icon: Clock };
     }
@@ -215,9 +239,9 @@ export default function ActivityList({ className = '', onActivityUpdate }: { cla
       </div>
     );
     
-    if (isExpired && isSender && p.status !== 4 && p.status !== 3 && p.status !== 2) return <button onClick={() => executeAction('reclaim', p.id)} className="w-full sm:w-auto px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl flex justify-center items-center gap-2 shadow-lg animate-pulse-slow mt-2 whitespace-nowrap"><Undo2 size={14}/> Reclaim Funds</button>;
+    if (p.pType === 1 && isExpired && isSender && p.status !== 4 && p.status !== 3 && p.status !== 2) return <button onClick={() => executeAction('reclaim', p.id)} className="w-full sm:w-auto px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl flex justify-center items-center gap-2 shadow-lg animate-pulse-slow mt-2 whitespace-nowrap"><Undo2 size={14}/> Reclaim Funds</button>;
     
-    if (p.status === 0 && isReceiver && !isExpired) return (
+    if (p.status === 0 && isReceiver && (!isExpired || p.pType !== 1)) return (
       <div className="flex flex-wrap sm:flex-nowrap gap-2 mt-2 w-full sm:w-auto">
         <button onClick={() => setDeclineAction(p)} className="flex-1 sm:flex-none px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:text-rose-600 dark:hover:text-rose-400 text-xs font-bold rounded-xl whitespace-nowrap">Decline</button>
         {p.pType === 1 ? (!isCoolingOff && <button onClick={() => executeAction('claim', p.id, p.pType)} className="flex-1 sm:flex-none px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-md whitespace-nowrap">Claim</button>)
@@ -225,7 +249,7 @@ export default function ActivityList({ className = '', onActivityUpdate }: { cla
       </div>
     );
     
-    if (p.status === 1 && !isExpired) {
+    if (p.status === 1 && (!isExpired || p.pType !== 1)) {
       if (isSender) return (
         <div className="flex flex-wrap sm:flex-nowrap gap-2 mt-2 w-full sm:w-auto">
           <button onClick={() => executeAction('release', p.id)} className="flex-1 sm:flex-none px-3 py-2 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-800 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/30 text-xs font-bold rounded-xl hover:bg-emerald-100 dark:hover:bg-emerald-500/20 whitespace-nowrap">Release</button>
@@ -257,7 +281,7 @@ export default function ActivityList({ className = '', onActivityUpdate }: { cla
           const isSender = address?.toLowerCase() === p.sender.toLowerCase();
           const isReceiver = address?.toLowerCase() === p.receiver.toLowerCase();
           const isArbiter = address?.toLowerCase() === p.arbiter.toLowerCase();
-          const { text: statusText, color: statusColor, icon: StatusIcon } = getStatusDisplay(p, isSender, isReceiver);
+          const { text: statusText, color: statusColor, icon: StatusIcon } = getStatusDisplay(p, isSender, isReceiver, isArbiter);
           const isExpired = now > Number(p.deadline) && Number(p.deadline) !== 0;
           const timeLeftString = formatTimeRemaining(Number(p.deadline));
           
@@ -265,19 +289,16 @@ export default function ActivityList({ className = '', onActivityUpdate }: { cla
           let warningText = "";
           let warningIconColor = "text-indigo-500 dark:text-indigo-400";
 
-          // ✅ BULLETPROOF FIX: Explicitly whitelist only Basic (0) and Timelocked (1)
-          const isBasicOrTimelocked = Number(p.pType) === 0 || Number(p.pType) === 1;
-          const isActiveStatus = p.status === 0 || p.status === 1;
-
-          if (Number(p.deadline) !== 0 && !p.isDeclined && isActiveStatus && isBasicOrTimelocked) {
-              if (isExpired && isSender) {
+          // ONLY SHOW DEADLINE WARNINGS FOR TIMELOCKED ESCROWS (pType === 1)
+          if (p.pType === 1 && p.deadline !== "0" && !p.isDeclined && p.status !== 3 && p.status !== 4 && p.status !== 2) {
+              if (isExpired && isSender && (p.status === 0 || p.status === 1)) {
                   showWarning = true;
                   warningText = "Deadline Passed: The receiver did not act in time. You may now reclaim your funds.";
                   warningIconColor = "text-amber-500 dark:text-amber-400";
-              } else if (!isExpired) {
+              } else if (!isExpired && (p.status === 0 || p.status === 1)) {
                   showWarning = true;
                   const isCoolingOff = now < Number(p.availableAt);
-                  if (isReceiver && Number(p.pType) === 1 && isCoolingOff) {
+                  if (isReceiver && isCoolingOff) {
                       warningText = `Cooling Off: This payment unlocks in ${formatTimeRemaining(Number(p.availableAt))}.`;
                   } else if (isReceiver) {
                       warningText = `Action Required: This payment expires in ${timeLeftString}. Ensure you claim the funds before the deadline, or the sender can reclaim them.`;

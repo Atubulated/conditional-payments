@@ -169,7 +169,6 @@ export default function ArbiterChat({ paymentId, currentUserAddress, arbiterAddr
 
   if (isLoading) {
     return (
-      // SURGICAL FIX: Shrunk min height so it fits on landscape/short mobile screens
       <div className="flex flex-col items-center justify-center h-[80vh] min-h-[300px] max-h-[90vh] w-full bg-slate-50/50 dark:bg-slate-950/50">
         <Loader2 className="w-8 h-8 animate-spin text-indigo-500 dark:text-indigo-400 mb-4" />
         <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Syncing Room...</span>
@@ -178,7 +177,6 @@ export default function ArbiterChat({ paymentId, currentUserAddress, arbiterAddr
   }
 
   return (
-    // SURGICAL FIX: Allowed shrinking to 300px and limited max height to 90vh
     <div className="flex flex-col h-[80vh] max-h-[90vh] min-h-[300px] w-full bg-white dark:bg-slate-900 overflow-hidden animate-fade-in">
       <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-900 shrink-0 shadow-sm z-10">
         <div className="flex items-center gap-3.5">
@@ -247,7 +245,6 @@ export default function ArbiterChat({ paymentId, currentUserAddress, arbiterAddr
 
             return (
               <div key={msg.id} className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'}`}>
-                {/* SURGICAL FIX: Expanded bubble max-width for better mobile reading */}
                 <div className={`flex flex-col max-w-[90%] sm:max-w-[80%] ${isMe ? 'items-end' : 'items-start'}`}>
                   <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5 px-1 flex items-center gap-1.5">
                     {isArbiterMsg && <Shield size={10} className="text-amber-500" />}
@@ -331,7 +328,7 @@ export default function ArbiterChat({ paymentId, currentUserAddress, arbiterAddr
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
               placeholder="Message or paste evidence..."
-              className="flex-1 bg-transparent py-2.5 px-2 text-[13px] sm:text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none resize-none min-h-[40px] max-h-[120px] font-medium"
+              className="flex-1 bg-transparent py-2.5 px-2 text-[13px] sm:text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none resize-none min-h-[40px] max-h-[120px] font-medium [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
               rows={1}
               disabled={isSending}
               onKeyDown={(e) => {
