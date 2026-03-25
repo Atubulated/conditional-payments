@@ -82,10 +82,13 @@ export default function ProfileAvatar() {
         .upsert({ 
           wallet_address: address.toLowerCase(), 
           avatar_url: publicUrl,
-          // If you decide to add 'points' later, it won't be overwritten because we only pass what we want to update
         });
 
       if (updateError) throw updateError;
+
+      // ✅ NEW: Tell the Quest system (user_points) that the avatar is set!
+      await supabase.from('user_points').update({ avatar_id: 1 }).eq('wallet_address', address.toLowerCase());
+      window.dispatchEvent(new Event('xp-updated')); // Forces Quests.tsx to immediately recognize it
 
       // 4. Update the UI and notify the user
       setAvatarUrl(publicUrl);

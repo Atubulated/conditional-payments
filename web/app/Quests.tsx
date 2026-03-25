@@ -17,10 +17,12 @@ export default function Quests({ userStats, fetchUserStats, processQuestClaim }:
   const [timeUntilMidnight, setTimeUntilMidnight] = useState('');
   const [activeTab, setActiveTab] = useState<'once' | 'daily'>('once');
   const [escrowActivity, setEscrowActivity] = useState<any[]>([]);
+  const [hasAvatar, setHasAvatar] = useState(false);
 
   // 1. Define conditions first so they are available to build the master checkpoint.
   const isUsernameSet = userStats?.username && !userStats.username.startsWith('User_');
-  const isDpSet = userStats?.avatarId !== 0;
+  // ✅ BULLETPROOF FIX: Check if the profile table has the avatar URL, OR if the points table has the ID
+  const isDpSet = hasAvatar || userStats?.avatarId !== 0;
 
   // 2. Build the all-encompassing master checkpoint.
   // This checks for the display picture, username, AND all three social accounts.
@@ -49,11 +51,22 @@ export default function Quests({ userStats, fetchUserStats, processQuestClaim }:
   useEffect(() => {
     if (!address) return;
     const fetchActivity = async () => {
-      const { data } = await supabase
+      const { data: escrowData } = await supabase
         .from('escrow_payments')
         .select('*')
         .or(`sender.eq.${address.toLowerCase()},receiver.eq.${address.toLowerCase()},arbiter.eq.${address.toLowerCase()}`);
-      if (data) setEscrowActivity(data);
+      if (escrowData) setEscrowActivity(escrowData);
+
+      // ✅ NEW: Directly check the profiles table to see if an image exists
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('avatar_url')
+        .eq('wallet_address', address.toLowerCase())
+        .single();
+        
+      if (profileData?.avatar_url) {
+        setHasAvatar(true);
+      }
     };
     fetchActivity();
   }, [address]);
@@ -211,7 +224,7 @@ export default function Quests({ userStats, fetchUserStats, processQuestClaim }:
           </div>
         </div>
 
-        {/* ✅ RESTORED INDIGO BANNER & UPDATED TEXT */}
+        {/* Warning Banner updated for all checkpoints */}
         {!allCheckpointsMet && (
           <div className="bg-indigo-50 dark:bg-indigo-900/20 border-b border-indigo-100 dark:border-indigo-800/50 p-3.5 flex gap-3 items-start">
             <Info size={16} className="text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
