@@ -2,7 +2,7 @@
 
 import ArbiterChat from './ArbiterChat';
 import { createPortal } from 'react-dom';
-import { X, MessageSquare, Shield, Clock, AlertTriangle, CheckCircle, XCircle, ArrowRight, Undo2, Banknote, Loader2, Snowflake, Flame, Info, Copy, ExternalLink, Check } from 'lucide-react';
+import { X, MessageSquare, Shield, Clock, AlertTriangle, CheckCircle, XCircle, ArrowRight, Undo2, Loader2, Snowflake, Flame, Info, Copy, ExternalLink, Check } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAccount, useWriteContract } from 'wagmi';
 import { CONTRACT_ADDRESS, CONTRACT_ABI, USDC_ADDRESS, ERC20_ABI } from './constants';
@@ -90,7 +90,7 @@ export default function ActivityList({ className = '', onActivityUpdate }: { cla
   useEffect(() => { 
     if (address) { 
       setIsLoading(true); 
-      loadFromDatabase();
+      loadFromDatabase(); 
       const interval = setInterval(loadFromDatabase, 15000); 
       return () => clearInterval(interval); 
     } 
@@ -173,55 +173,50 @@ export default function ActivityList({ className = '', onActivityUpdate }: { cla
     } catch (e) { showToast('error', 'Failed'); }
   };
 
-  const getStatusDisplay = (p: any, isSender: boolean, isReceiver: boolean, isArbiter: boolean) => {
-    const isStrictlyArbiter = isArbiter && !isSender && !isReceiver;
-
+  const getStatusDisplay = (p: any, isSender: boolean, isReceiver: boolean, isStrictlyArbiter: boolean) => {
     if (p.isDeclined) return { text: 'Declined', color: 'text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/10 border-rose-200 dark:border-rose-500/20', icon: XCircle };
     const status = p.status; const deadline = Number(p.deadline); const availableAt = Number(p.availableAt);
     
     if (status === 4) return { text: 'Refunded', color: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/20', icon: Undo2 };
     
     if (status === 3) {
-      if (p.pType === 3 && p.resolvedTo === "0x0000000000000000000000000000000000000000") return { text: 'Slashed', color: 'text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/10 border-rose-200 dark:border-rose-500/20', icon: Flame };
+      if (Number(p.pType) === 3 && p.resolvedTo === "0x0000000000000000000000000000000000000000") return { text: 'Slashed', color: 'text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/10 border-rose-200 dark:border-rose-500/20', icon: Flame };
       return { text: 'Completed', color: 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/20', icon: CheckCircle };
     }
     
     if (status === 2) {
-      if (isArbiter) {
-        return {
-          text: 'Awaiting Your Decision',
-          color: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/20',
-          icon: AlertTriangle
-        };
-      }
-      return {
-        text: 'Awaiting Arbiter Decision',
-        color: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/20',
-        icon: AlertTriangle
-      };
+      if (isStrictlyArbiter) return { text: 'Awaiting Your Decision', color: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/20', icon: AlertTriangle };
+      return { text: 'In Dispute', color: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/20', icon: AlertTriangle };
     }
     
-    if (p.pType === 1 && now > deadline && deadline !== 0) {
+    if (Number(p.pType) === 1 && now > deadline && deadline !== 0) {
+      if (isStrictlyArbiter) return { text: 'No Action Needed Yet', color: 'text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700', icon: Shield };
       if (isSender && (status === 0 || status === 1)) return { text: 'Ready to Reclaim', color: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/20', icon: Undo2 };
       return { text: 'Expired', color: 'text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700', icon: Clock };
     }
 
     if (status === 1) {
       if (isStrictlyArbiter) return { text: 'No Action Needed Yet', color: 'text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700', icon: Shield };
-      return { text: p.pType === 3 ? 'Active' : `Active: ${formatTimeRemaining(deadline)}`, color: 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 border-indigo-200 dark:border-indigo-500/20', icon: Shield };
+      if (Number(p.pType) === 1) return { text: `Active: ${formatTimeRemaining(deadline)}`, color: 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 border-indigo-200 dark:border-indigo-500/20', icon: Shield };
+      
+      // Makes active Mediated/Bonded escrows fully role-aware
+      if (isSender) return { text: 'Action Required', color: 'text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/10 border-rose-200 dark:border-rose-500/20', icon: AlertTriangle };
+      if (isReceiver) return { text: 'Awaiting Sender', color: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/20', icon: Clock };
+      
+      return { text: 'Active', color: 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 border-indigo-200 dark:border-indigo-500/20', icon: Shield };
     }
     
     if (status === 0) {
       if (isStrictlyArbiter) return { text: 'No Action Needed Yet', color: 'text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700', icon: Shield };
       
-      if (p.pType === 1) {
+      if (Number(p.pType) === 1) {
         if (now < availableAt) return { text: `Locked: ${formatTimeRemaining(availableAt)}`, color: 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 border-indigo-200 dark:border-indigo-500/20', icon: Snowflake };
         return isReceiver ? { text: 'Ready to Claim', color: 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/20', icon: CheckCircle } : { text: 'Awaiting Claim', color: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/20', icon: Clock };
       }
-      if (p.pType === 2) {
-        if (isReceiver) return { text: 'Awaiting Action', color: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/20', icon: Clock };
-        return { text: 'Awaiting Receiver', color: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/20', icon: Clock };
-      }
+      
+      if (isReceiver) return { text: 'Awaiting Action', color: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/20', icon: Clock };
+      if (isSender) return { text: 'Awaiting Receiver', color: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/20', icon: Clock };
+      
       return { text: 'Awaiting Action', color: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/20', icon: Clock };
     }
     return { text: 'Unknown', color: 'text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800', icon: Clock };
@@ -229,7 +224,7 @@ export default function ActivityList({ className = '', onActivityUpdate }: { cla
 
   const getActionButtons = (p: any, isSender: boolean, isReceiver: boolean, isArbiter: boolean) => {
     if (p.isDeclined) return null;
-    const isExpired = now > Number(p.deadline) && Number(p.deadline) !== 0;
+    const isExpired = Number(p.pType) === 1 && now > Number(p.deadline) && Number(p.deadline) !== 0;
     const isCoolingOff = now < Number(p.availableAt);
     
     if (p.status === 2 && isArbiter) return (
@@ -239,24 +234,24 @@ export default function ActivityList({ className = '', onActivityUpdate }: { cla
       </div>
     );
     
-    if (p.pType === 1 && isExpired && isSender && p.status !== 4 && p.status !== 3 && p.status !== 2) return <button onClick={() => executeAction('reclaim', p.id)} className="w-full sm:w-auto px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl flex justify-center items-center gap-2 shadow-lg animate-pulse-slow mt-2 whitespace-nowrap"><Undo2 size={14}/> Reclaim Funds</button>;
+    if (Number(p.pType) === 1 && isExpired && isSender && p.status !== 4 && p.status !== 3 && p.status !== 2) return <button onClick={() => executeAction('reclaim', p.id)} className="w-full sm:w-auto px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl flex justify-center items-center gap-2 shadow-lg animate-pulse-slow mt-2 whitespace-nowrap"><Undo2 size={14}/> Reclaim Funds</button>;
     
-    if (p.status === 0 && isReceiver && (!isExpired || p.pType !== 1)) return (
+    if (p.status === 0 && isReceiver && (!isExpired || Number(p.pType) !== 1)) return (
       <div className="flex flex-wrap sm:flex-nowrap gap-2 mt-2 w-full sm:w-auto">
         <button onClick={() => setDeclineAction(p)} className="flex-1 sm:flex-none px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:text-rose-600 dark:hover:text-rose-400 text-xs font-bold rounded-xl whitespace-nowrap">Decline</button>
-        {p.pType === 1 ? (!isCoolingOff && <button onClick={() => executeAction('claim', p.id, p.pType)} className="flex-1 sm:flex-none px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-md whitespace-nowrap">Claim</button>)
-        : <button onClick={() => executeAction('accept', p.id, p.pType, p.bondAmount)} className="flex-1 sm:flex-none px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-md whitespace-nowrap">{p.pType === 3 ? 'Post Bond' : 'Accept'}</button>}
+        {Number(p.pType) === 1 ? (!isCoolingOff && <button onClick={() => executeAction('claim', p.id, p.pType)} className="flex-1 sm:flex-none px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-md whitespace-nowrap">Claim</button>)
+        : <button onClick={() => executeAction('accept', p.id, p.pType, p.bondAmount)} className="flex-1 sm:flex-none px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-md whitespace-nowrap">{Number(p.pType) === 3 ? 'Post Bond' : 'Accept'}</button>}
       </div>
     );
     
-    if (p.status === 1 && (!isExpired || p.pType !== 1)) {
+    if (p.status === 1 && (!isExpired || Number(p.pType) !== 1)) {
       if (isSender) return (
         <div className="flex flex-wrap sm:flex-nowrap gap-2 mt-2 w-full sm:w-auto">
           <button onClick={() => executeAction('release', p.id)} className="flex-1 sm:flex-none px-3 py-2 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-800 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/30 text-xs font-bold rounded-xl hover:bg-emerald-100 dark:hover:bg-emerald-500/20 whitespace-nowrap">Release</button>
           <button onClick={() => setDisputeAction(p)} className="flex-1 sm:flex-none px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-rose-600 dark:text-rose-400 text-xs font-bold rounded-xl hover:bg-rose-50 dark:hover:bg-rose-500/10 whitespace-nowrap">Dispute</button>
         </div>
       );
-      if (isReceiver && p.pType !== 3) return <button onClick={() => setDisputeAction(p)} className="w-full sm:w-auto px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-rose-600 dark:text-rose-400 text-xs font-bold rounded-xl hover:bg-rose-50 dark:hover:bg-rose-500/10 mt-2 whitespace-nowrap">Dispute</button>;
+      if (isReceiver && Number(p.pType) !== 3) return <button onClick={() => setDisputeAction(p)} className="w-full sm:w-auto px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-rose-600 dark:text-rose-400 text-xs font-bold rounded-xl hover:bg-rose-50 dark:hover:bg-rose-500/10 mt-2 whitespace-nowrap">Dispute</button>;
     }
     return null;
   };
@@ -281,16 +276,18 @@ export default function ActivityList({ className = '', onActivityUpdate }: { cla
           const isSender = address?.toLowerCase() === p.sender.toLowerCase();
           const isReceiver = address?.toLowerCase() === p.receiver.toLowerCase();
           const isArbiter = address?.toLowerCase() === p.arbiter.toLowerCase();
-          const { text: statusText, color: statusColor, icon: StatusIcon } = getStatusDisplay(p, isSender, isReceiver, isArbiter);
-          const isExpired = now > Number(p.deadline) && Number(p.deadline) !== 0;
+          
+          const isStrictlyArbiter = isArbiter && !isSender && !isReceiver;
+
+          const { text: statusText, color: statusColor, icon: StatusIcon } = getStatusDisplay(p, isSender, isReceiver, isStrictlyArbiter);
+          const isExpired = Number(p.pType) === 1 && now > Number(p.deadline) && Number(p.deadline) !== 0;
           const timeLeftString = formatTimeRemaining(Number(p.deadline));
           
           let showWarning = false;
           let warningText = "";
           let warningIconColor = "text-indigo-500 dark:text-indigo-400";
 
-          // ONLY SHOW DEADLINE WARNINGS FOR TIMELOCKED ESCROWS (pType === 1)
-          if (p.pType === 1 && p.deadline !== "0" && !p.isDeclined && p.status !== 3 && p.status !== 4 && p.status !== 2) {
+          if (!isStrictlyArbiter && Number(p.pType) === 1 && p.deadline !== "0" && !p.isDeclined && p.status !== 3 && p.status !== 4 && p.status !== 2) {
               if (isExpired && isSender && (p.status === 0 || p.status === 1)) {
                   showWarning = true;
                   warningText = "Deadline Passed: The receiver did not act in time. You may now reclaim your funds.";
@@ -310,7 +307,7 @@ export default function ActivityList({ className = '', onActivityUpdate }: { cla
           }
 
           let destAddress = p.receiver; let destLabel = 'To'; let FlowIcon = ArrowRight; let flowColor = 'text-slate-300 dark:text-slate-600'; let destLabelColor = 'text-slate-500 dark:text-slate-400';
-          const isSlashed = p.pType === 3 && p.status === 3 && p.resolvedTo === "0x0000000000000000000000000000000000000000";
+          const isSlashed = Number(p.pType) === 3 && p.status === 3 && p.resolvedTo === "0x0000000000000000000000000000000000000000";
           const isReturned = p.isDeclined || p.status === 4 || (p.status === 3 && verdictPayments.has(String(p.id)) && p.resolvedTo?.toLowerCase() === p.sender.toLowerCase());
 
           if (isSlashed) { destAddress = '0x0000...0000'; destLabel = 'Slashed'; flowColor = 'text-rose-300 dark:text-rose-500/50'; destLabelColor = 'text-rose-500 dark:text-rose-400'; }
@@ -329,14 +326,14 @@ export default function ActivityList({ className = '', onActivityUpdate }: { cla
                       <div className="flex items-center gap-1.5 whitespace-nowrap"><span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase font-sans">From</span><span className={isSender ? 'text-indigo-600 dark:text-indigo-400 font-bold' : ''}>{truncateAddress(p.sender)}</span></div>
                       <FlowIcon size={12} className={`shrink-0 ${flowColor}`} />
                       <div className="flex items-center gap-1.5 whitespace-nowrap"><span className={`text-[9px] font-bold uppercase font-sans ${destLabelColor}`}>{destLabel}</span><span className={address?.toLowerCase() === destAddress.toLowerCase() ? 'text-indigo-600 dark:text-indigo-400 font-bold' : ''}>{destAddress === '0x0000...0000' ? destAddress : truncateAddress(destAddress)}</span></div>
-                      {p.pType === 2 && <><span className="text-slate-300 dark:text-slate-700 hidden sm:inline shrink-0">•</span><div className="flex items-center gap-1.5 mt-1 sm:mt-0 whitespace-nowrap"><span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase font-sans">Arbiter</span><span className={isArbiter ? 'text-amber-600 dark:text-amber-400 font-bold' : ''}>{truncateAddress(p.arbiter)}</span></div></>}
+                      {Number(p.pType) === 2 && <><span className="text-slate-300 dark:text-slate-700 hidden sm:inline shrink-0">•</span><div className="flex items-center gap-1.5 mt-1 sm:mt-0 whitespace-nowrap"><span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase font-sans">Arbiter</span><span className={isArbiter ? 'text-amber-600 dark:text-amber-400 font-bold' : ''}>{truncateAddress(p.arbiter)}</span></div></>}
                     </div>
                   </div>
                   
                   <div className="flex flex-col sm:flex-col items-start sm:items-end justify-between w-full sm:w-auto gap-3 pt-2 sm:pt-0">
                     <div className="text-left sm:text-right flex flex-col items-start sm:items-end w-full sm:w-auto border-t border-slate-100 dark:border-slate-800/50 sm:border-0 pt-3 sm:pt-0">
                       <div className="font-bold text-slate-900 dark:text-white text-base">{(Number(p.amount) / 1e6).toFixed(2)} USDC</div>
-                      {p.pType === 3 && <div className="text-[10px] text-slate-600 dark:text-slate-400 font-semibold uppercase mt-0.5">Bond: {(Number(p.bondAmount) / 1e6).toFixed(2)}</div>}
+                      {Number(p.pType) === 3 && <div className="text-[10px] text-slate-600 dark:text-slate-400 font-semibold uppercase mt-0.5">Bond: {(Number(p.bondAmount) / 1e6).toFixed(2)}</div>}
                       
                       {p.lastTxHash && (
                         <div className="flex items-center gap-1.5 mt-1.5 opacity-80 hover:opacity-100 transition-opacity">
@@ -356,7 +353,7 @@ export default function ActivityList({ className = '', onActivityUpdate }: { cla
                     
                     <div className="flex flex-wrap w-full sm:w-auto gap-2">
                       {getActionButtons(p, isSender, isReceiver, isArbiter)}
-                      {p.pType === 2 && p.status === 2 && <button onClick={() => setActiveChatPayment(p)} className="w-full sm:w-auto justify-center px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-700 text-xs font-bold rounded-xl shadow-md flex items-center gap-1.5 mt-2"><MessageSquare size={14} /> View Chat</button>}
+                      {Number(p.pType) === 2 && p.status === 2 && <button onClick={() => setActiveChatPayment(p)} className="w-full sm:w-auto justify-center px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-700 text-xs font-bold rounded-xl shadow-md flex items-center gap-1.5 mt-2"><MessageSquare size={14} /> View Chat</button>}
                       {hasChatHistory && (p.status === 3 || p.status === 4) && <button onClick={() => setActiveChatPayment(p)} className="w-full sm:w-auto justify-center px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-bold rounded-xl shadow-sm flex items-center gap-1.5 mt-2"><MessageSquare size={14} /> Transcript</button>}
                     </div>
                   </div>

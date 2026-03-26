@@ -27,7 +27,8 @@ import {
 const arcTestnet: Chain = {
   id: 5042002,
   name: 'Arc Testnet',
-  nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 6 },
+  // FIX: Native currency MUST have 18 decimals or wallets will refuse to add the network
+  nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
   rpcUrls: { default: { http: ['https://rpc.testnet.arc.network'] } },
   blockExplorers: { default: { name: 'Arc Explorer', url: 'https://testnet.arcscan.app' } },
   testnet: true,
@@ -89,9 +90,9 @@ interface Payment {
 const truncateAddress = (addr: string) => addr ? `${addr.slice(0, 6)}...${addr.slice(-4)}` : '';
 
 const getEscrowTypeName = (pType: number) => {
-  if (pType === 1) return 'Timelocked';
-  if (pType === 2) return 'Mediated';
-  if (pType === 3) return 'Bonded';
+  if (Number(pType) === 1) return 'Timelocked';
+  if (Number(pType) === 2) return 'Mediated';
+  if (Number(pType) === 3) return 'Bonded';
   return 'Basic';
 };
 
@@ -167,7 +168,7 @@ const Header = ({ address, hasWallet, notifications = [], inbox = [], usdcBalanc
   const unreadCount = inbox.filter((m: any) => !readMessages.has(`${m.id}-${m.status}`)).length;
   const visibleNotifications = notifications.filter((n: any) => {
     const isReceiver = address && n.receiver.toLowerCase() === address.toLowerCase();
-    const isExpired = (Math.floor(Date.now() / 1000)) > Number(n.deadline) && Number(n.deadline) !== 0;
+    const isExpired = Number(n.pType) === 1 && (Math.floor(Date.now() / 1000)) > Number(n.deadline) && Number(n.deadline) !== 0;
     return !(isExpired && isReceiver);
   });
 
@@ -249,7 +250,7 @@ const Header = ({ address, hasWallet, notifications = [], inbox = [], usdcBalanc
                               desc = isMeReceiver
                                 ? `Success! The ${formatAmount} USDC escrow has been completed and the funds are now available in your wallet.`
                                 : `The ${formatAmount} USDC escrow was completed successfully and the funds have been released to the receiver (${receiverAddress}).`;
-                            } else if (msg.status === 0 && (now > Number(msg.deadline) && Number(msg.deadline) !== 0)) { 
+                            } else if (msg.status === 0 && Number(msg.pType) === 1 && (now > Number(msg.deadline) && Number(msg.deadline) !== 0)) { 
                               title = 'Offer Expired'; 
                               Icon = Clock; color = 'text-slate-500'; 
                               desc = isMeSender
@@ -299,13 +300,14 @@ const Header = ({ address, hasWallet, notifications = [], inbox = [], usdcBalanc
                         const isSender = address && n.sender.toLowerCase() === address.toLowerCase();
                         const isReceiver = address && n.receiver.toLowerCase() === address.toLowerCase();
                         const isArbiter = address && n.arbiter.toLowerCase() === address.toLowerCase();
-                        const isExpired = now > Number(n.deadline) && Number(n.deadline) !== 0;
+                        const isStrictlyArbiter = isArbiter && !isSender && !isReceiver;
+                        const isExpired = Number(n.pType) === 1 && now > Number(n.deadline) && Number(n.deadline) !== 0;
                         const isCoolingOff = now < Number(n.availableAt);
                         
                         let badgeText = "Action Required";
                         let badgeColor = "bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-100 dark:border-indigo-500/20";
 
-                        if (isArbiter && n.status !== 2) {
+                        if (isStrictlyArbiter && n.status !== 2) {
                           badgeText = "No Action Needed Yet";
                           badgeColor = "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700";
                         } else if (isExpired && isSender) {
@@ -314,20 +316,30 @@ const Header = ({ address, hasWallet, notifications = [], inbox = [], usdcBalanc
                         } else if (n.status === 0) {
                           if (isSender) {
                             badgeText = "Awaiting Receiver";
+                            badgeColor = "bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-100 dark:border-amber-500/20";
                           } else if (isReceiver) {
-                            if (n.pType === 1 && isCoolingOff) {
+                            if (Number(n.pType) === 1 && isCoolingOff) {
                               badgeText = `Unlocks in ${formatTimeRemaining(Number(n.availableAt))}`;
                               badgeColor = "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700";
-                            } else if (n.pType === 2) {
-                              badgeText = "Accept or Decline";
-                            } else {
+                            } else if (Number(n.pType) === 1) {
                               badgeText = `Expires in ${formatTimeRemaining(Number(n.deadline))}`;
+                              badgeColor = "bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-100 dark:border-rose-500/20";
+                            } else {
+                              badgeText = "Action Required";
                               badgeColor = "bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-100 dark:border-rose-500/20";
                             }
                           }
                         } else if (n.status === 1) {
-                          badgeText = "In Progress";
-                          badgeColor = "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-100 dark:border-emerald-500/20";
+                          if (Number(n.pType) === 1) {
+                            badgeText = "In Progress";
+                            badgeColor = "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-100 dark:border-emerald-500/20";
+                          } else if (isSender) {
+                            badgeText = "Action Required";
+                            badgeColor = "bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-100 dark:border-rose-500/20";
+                          } else if (isReceiver) {
+                            badgeText = "Awaiting Sender";
+                            badgeColor = "bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-100 dark:border-amber-500/20";
+                          }
                         } else if (n.status === 2) {
                           if (isArbiter) {
                             badgeText = "Awaiting Your Decision";
